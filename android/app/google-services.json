@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "52267953227",
+    "firebase_url": "https://olgaordersystem.firebaseio.com",
+    "project_id": "olgaordersystem",
+    "storage_bucket": "olgaordersystem.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:52267953227:android:57664cd28f1c874c2171ce",
+        "android_client_info": {
+          "package_name": "com.app.ordersystem.olga"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "52267953227-6g6aefjjbb066nl9pbdo8r2fii8p7lho.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCygLNG9gYRlxcPdxno0tQB_4b-9NqntOg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "52267953227-6g6aefjjbb066nl9pbdo8r2fii8p7lho.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "52267953227-5heh90ldfneduvvrjc5rnghl51el6hsc.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.app.ordersystem.olga"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
