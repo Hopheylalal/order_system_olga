@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -5,14 +7,12 @@ import 'package:flutter_dialogs/flutter_dialogs.dart';
 import 'package:ordersystem/provider/provider.dart';
 import 'package:ordersystem/screens/blocked_screen.dart';
 import 'package:ordersystem/screens/common_master_profile.dart';
-import 'package:ordersystem/screens/respond_message_screen.dart';
 import 'package:ordersystem/screens/toMaster_message_screen.dart';
 import 'package:ordersystem/services/auth_service.dart';
 import 'package:ordersystem/widgets/update_order.dart';
 import 'package:provider/provider.dart';
-import 'package:ordersystem/widgets/respond_widget.dart';
-import 'package:mailer/mailer.dart';
-import 'package:mailer/smtp_server.dart';
+import 'package:simple_connectivity/simple_connectivity.dart';
+import 'package:toast/toast.dart';
 
 class OrderScreen extends StatefulWidget {
   final orderScreenCreateDate;
@@ -31,7 +31,8 @@ class OrderScreen extends StatefulWidget {
       @required this.orderScreenCategory,
       @required this.orderScreenId,
       @required this.orderScreenOwner,
-      @required this.orderScreenDescription, this.masterUid});
+      @required this.orderScreenDescription,
+      this.masterUid});
 
   @override
   _OrderScreenState createState() => _OrderScreenState();
@@ -48,33 +49,6 @@ class _OrderScreenState extends State<OrderScreen> {
   final _formKey = GlobalKey<FormState>();
   TextEditingController textFormField = TextEditingController();
 
-  void sendEmail(recipients, respond) async {
-    FirebaseUser fu = await FirebaseAuth.instance.currentUser();
-
-    final getMasterData =
-        await Firestore.instance.collection('masters').document(fu.uid).get();
-    // final getMasterRespond =
-    // await Firestore.instance.collection('responds').document(fu.uid).get();
-
-    String username = 'order.system.app2@gmail.com';
-    String password = '1011678asd';
-
-    final smtpServer = gmail(username, password);
-    final message = Message()
-      ..from = Address(username, 'OrderSystem')
-      ..recipients.add('$recipients')
-      ..subject = 'Получен отклик от мастера'
-//      ..text = 'This is the plain text.\nThis is line 2 of the text part.'
-      ..html =
-          "<p>На вашу заявку откликнулся мастер: </p>\n<p>Имя: ${getMasterData.data['name']} </p>\n<p>Отклик: ${respond} </p>\n<p>Телефон: ${getMasterData.data['phoneNumber']} </p>\n<p>Чтобы посмотреть подробности о мастере или начать диалог в чате, скачайте наше приложение (ссылка). </p>";
-    final sendReport = await send(message, smtpServer);
-    print(
-      'Message sent: ' + sendReport.toString(),
-    );
-  }
-
-
-
   getBlockedStatus() async {
     var ggg = await Auth().currentUser();
     var blocked =
@@ -86,23 +60,16 @@ class _OrderScreenState extends State<OrderScreen> {
     });
   }
 
-
-
-  // getDocExistRespond() async {
-  //   FirebaseUser ff = await FirebaseAuth.instance.currentUser();
-  //   var docs = await Firestore.instance
-  //       .collection('responds')
-  //       .where('orderId', isEqualTo: widget.orderScreenId)
-  //       .where('masterUid', isEqualTo: ff?.uid)
-  //       .getDocuments();
-  //   setState(() {
-  //     existDocs = docs.documents;
-  //   });
-  // }
   sendMsgButton(user) async {
     try {
       setState(() {
         buttonEnabled = false;
+        Timer(Duration(seconds: 4), () {
+          setState(() {
+            buttonEnabled = true;
+
+          });
+        });
       });
       final chatExist = await Firestore.instance
           .collection('messages')
@@ -144,9 +111,6 @@ class _OrderScreenState extends State<OrderScreen> {
             ),
           ),
         );
-        setState(() {
-          buttonEnabled = true;
-        });
       } else {
         List docId = [];
 
@@ -161,9 +125,6 @@ class _OrderScreenState extends State<OrderScreen> {
                 from: user.uid, to: widget.orderScreenOwner, chatId: docId[0]),
           ),
         );
-        setState(() {
-          buttonEnabled = true;
-        });
       }
     } catch (e) {
       print(
@@ -175,21 +136,38 @@ class _OrderScreenState extends State<OrderScreen> {
     }
   }
 
+  setNewStatusFalse() async {
+    if (widget.orderScreenOwner != context.read<FirebaseUser>().uid) {
+      try {
+        await Firestore.instance
+            .collection('orders')
+            .document(widget.orderScreenId.toString())
+            .updateData({'newOne': false});
+      } catch (e) {
+        print(e);
+      }
+    } else {
+      print('OrderUser == user');
+    }
+  }
+
+  var connectivityResult;
+
+  void getConnection() async {
+    connectivityResult = await (Connectivity().checkConnectivity());
+  }
 
   @override
   void initState() {
-    // getDocExistRespond();
+    getConnection();
     getBlockedStatus();
+    setNewStatusFalse();
     super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
-    context.watch<DataProvider>().getOrderId(widget.orderScreenId);
-
     final user = context.watch<FirebaseUser>();
-    final userName = user?.email;
-    final userUid = user?.uid;
 
     return Scaffold(
       resizeToAvoidBottomPadding: true,
@@ -197,39 +175,64 @@ class _OrderScreenState extends State<OrderScreen> {
         title: Text('Экран задания'),
         centerTitle: true,
         actions: [
-          if(userUid == widget.masterUid)
-            IconButton(icon: Icon(Icons.email),onPressed: (){
-
-              if (user != null) {
-                if (buttonEnabled = true) {
-                  sendMsgButton(user);
-                  setState(() {
-                    buttonEnabled = false;
-                  });
-                } else {
-                  return null;
-                }
-              } else {
-                showPlatformDialog(
-                  context: context,
-                  builder: (_) => BasicDialogAlert(
-                    title: Text("Внимание"),
-                    content: Text(
-                        "Авторизуйтесь чтобы продолжить"),
-                    actions: <Widget>[
-                      BasicDialogAction(
-                        title: Text("OK"),
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
+          if (user.uid == widget.masterUid)
+            FlatButton.icon(
+                label: Text(
+                  'Чат',
+                  style: TextStyle(color: Colors.white),
+                ),
+                icon: buttonEnabled == true
+                    ? Icon(
+                        Icons.email,
+                        color: Colors.white,
+                      )
+                    : SizedBox(
+                        width: 23,
+                        height: 23,
+                        child: CircularProgressIndicator(
+                          backgroundColor: Colors.white,
+                        ),
                       ),
-                    ],
-                  ),
-                );
-              }
-
-            },),
-          if (userUid == widget.orderScreenOwner)
+                onPressed: () {
+                  if (blockedStatus == false || blockedStatus == null) {
+                    if (connectivityResult == ConnectivityResult.none) {
+                      Toast.show("Нет сети, попробуйте позже.", context,
+                          duration: Toast.LENGTH_SHORT, gravity: Toast.CENTER);
+                    } else {
+                      if (user != null) {
+                        if (buttonEnabled = true) {
+                          sendMsgButton(user);
+                        } else {
+                          return null;
+                        }
+                      } else {
+                        showPlatformDialog(
+                          context: context,
+                          builder: (_) => BasicDialogAlert(
+                            title: Text("Внимание"),
+                            content: Text("Авторизуйтесь чтобы продолжить"),
+                            actions: <Widget>[
+                              BasicDialogAction(
+                                title: Text("OK"),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    }
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => Blocked(),
+                      ),
+                    );
+                  }
+                }),
+          if (user.uid == widget.orderScreenOwner)
             FutureBuilder(
                 future: Firestore.instance
                     .collection('orders')
@@ -246,7 +249,6 @@ class _OrderScreenState extends State<OrderScreen> {
                               MaterialPageRoute(
                                 builder: (context) => UpdateOrder(
                                   orderId: widget.orderScreenId,
-                                  categoryChosen: snapshot.data['category'],
                                 ),
                               ),
                             );
@@ -260,21 +262,20 @@ class _OrderScreenState extends State<OrderScreen> {
                           }
                         });
                   } else {
-                    return Expanded(child: LinearProgressIndicator());
+                    return SizedBox();
                   }
                 }),
 //          if(user.email == null)
-
         ],
       ),
-      body: StreamBuilder(
-          stream: Firestore.instance
+      body: FutureBuilder(
+          future: Firestore.instance
               .collection('orders')
               .document('${widget.orderScreenId}')
-              .snapshots(),
+              .get(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting)
-              return CircularProgressIndicator();
+              return LinearProgressIndicator();
             return SingleChildScrollView(
               child: Padding(
                 padding: const EdgeInsets.all(8.0),
@@ -288,10 +289,29 @@ class _OrderScreenState extends State<OrderScreen> {
                       'Категория',
                       style: TextStyle(fontSize: 20),
                     ),
-                    Text(
-                      '${updaterChecker == true ? snapshot.data['category'] : widget.orderScreenCategory}',
-                      style: TextStyle(fontSize: 16),
+                    SizedBox(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: snapshot.data['category']
+                            .where((element) => element != '1все')
+                            .map<Widget>((val) => Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 5),
+                                  child: Text(
+                                    '$val',
+                                    style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ))
+                            .toList(),
+                      ),
                     ),
+
+                    // Text(
+                    //   '${updaterChecker == true ? snapshot.data['category'] : snapshot.data['category']}',
+                    //   style: TextStyle(fontSize: 16),
+                    // ),
                     Divider(
                       color: Colors.grey,
                       thickness: 0.6,
@@ -316,35 +336,34 @@ class _OrderScreenState extends State<OrderScreen> {
                       '${widget.orderScreenOwnerName}',
                       style: TextStyle(fontSize: 16),
                     ),
-                    Divider(
-                      color: Colors.grey,
-                      thickness: 0.6,
-                    ),
-                    Text(
-                      'Поручено мастеру',
-                      style: TextStyle(fontSize: 20),
-                    ),
-                    Row(
-                      children: [
-                        Text(
-                          '${snapshot.data['masterName']}',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                        Spacer(),
-                        IconButton(
-                            icon: Icon(Icons.info),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => CommonMasterProfile(
-                                    masterId: snapshot.data['toMaster'],
+
+                    if (widget.masterUid != user.uid)
+                      Text(
+                        'Поручено мастеру',
+                        style: TextStyle(fontSize: 20),
+                      ),
+                    if (widget.masterUid != user.uid)
+                      Row(
+                        children: [
+                          Text(
+                            '${snapshot.data['masterName']}',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                          Spacer(),
+                          IconButton(
+                              icon: Icon(Icons.info),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => CommonMasterProfile(
+                                      masterId: snapshot.data['toMaster'],
+                                    ),
                                   ),
-                                ),
-                              );
-                            })
-                      ],
-                    ),
+                                );
+                              })
+                        ],
+                      ),
                     Divider(
                       color: Colors.grey,
                       thickness: 0.6,
@@ -369,57 +388,6 @@ class _OrderScreenState extends State<OrderScreen> {
                       '${updaterChecker == true ? snapshot.data['description'] : widget.orderScreenDescription}',
                       style: TextStyle(fontSize: 16),
                     ),
-                    // SizedBox(
-                    //   height: 30,
-                    // ),
-                    // Text(
-                    //   'Отклики',
-                    //   style:
-                    //       TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                    // ),
-                    // Divider(
-                    //   color: Colors.grey,
-                    // //   thickness: 0.6,
-                    // ),
-                    // StreamBuilder(
-                    //   stream: Firestore.instance
-                    //       .collection('responds')
-                    //       .where('orderId', isEqualTo: widget.orderScreenId)
-                    //       .orderBy('createDate', descending: true)
-                    //       .snapshots(),
-                    //   builder: (BuildContext context, AsyncSnapshot snapshot) {
-                    //     if (snapshot.connectionState == ConnectionState.none) {
-                    //       return Center(child: CircularProgressIndicator());
-                    //     }
-                    //     if (snapshot.hasData) {
-                    //       return SizedBox(
-                    //         child: Column(
-                    //             children: snapshot.data.documents
-                    //                 .where((element) =>
-                    //                     element['orderId'] ==
-                    //                             widget.orderScreenId &&
-                    //                         element['masterUid'] == userUid ||
-                    //                     element['orderOwnerUid'] == userUid)
-                    //                 .map<Widget>(
-                    //                   (val) => OrderRespond(
-                    //                     avatar: val['avatar'],
-                    //                     masterName: val['masterName'],
-                    //                     createDate: val['createDate'],
-                    //                     content: val['content'],
-                    //                     message: val['conversation'],
-                    //                     respondId: val['respondId'],
-                    //                     orderOwnerName: val['orderOwnerName'],
-                    //                     masterUid: val['masterUid'],
-                    //                     orderOwnerUid: val['orderOwnerUid'],
-                    //                     orderId: val['orderId'],
-                    //                   ),
-                    //                 )
-                    //                 .toList()),
-                    //       );
-                    //     } else {
-                    //       return LinearProgressIndicator();
-                    //     }
-                    //   },
                   ],
                 ),
               ),

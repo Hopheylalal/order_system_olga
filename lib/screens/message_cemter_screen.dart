@@ -55,48 +55,7 @@ class _MessageCenterState extends State<MessageCenter> {
         appBar: AppBar(
           title: Text('Сообщения'),
           centerTitle: true,
-//           actions: [
-//             Stack(children: <Widget>[
-//               IconButton(
-//                 icon: FaIcon(
-//                   FontAwesomeIcons.commentDots,
-//                   color: Colors.white,
-//                 ),
-//                 onPressed: () {
-//                   Navigator.push(
-//                           context,
-//                           MaterialPageRoute(
-//                               builder: (context) => MessageCenterRespond()))
-//                       .then((_) async {
-//                     final SharedPreferences prefs = await _prefs;
-//                     int respondBeigeCounterLoad =
-//                         (prefs.getInt('bageRespondCount'));
-//                     prefs.setInt(
-//                         "bageRespondCount", respondBeigeCounterLoad = 0);
-//                   });
-//                 },
-//               ),
-//               respondBeigeCounter != 0 && respondBeigeCounter != null
-//                   ? Positioned(
-//                       top: 4,
-//                       left: 22,
-//                       child: new Icon(
-//                         Icons.notifications,
-//                         size: 20,
-//                         color: Colors.red,
-//                       ),
-// //                  child: new Text(
-// //                    '$respondBeigeCounter',
-// //                    style: new TextStyle(
-// //                      fontWeight: FontWeight.bold,
-// //                      color: Colors.white,
-// //                      fontSize: 11,
-// //                    ),
-// //                    textAlign: TextAlign.center,
-//                     )
-//                   : SizedBox(),
-//             ])
-//           ],
+
         ),
         body: user?.uid != null
             ? StreamBuilder(

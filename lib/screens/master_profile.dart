@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'dart:ui';
+import 'package:basic_utils/basic_utils.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ordersystem/common/platform_alert_dialog.dart';
@@ -33,12 +35,23 @@ class _MasterProfileState extends State<MasterProfile> {
   String imgUrl;
   bool isLoading = false;
   bool _inProcess = false;
+  String usrStatus = '';
+
+  final userType = GetStorage();
 
   void getCurrentUser() async {
     var ggg = await Auth().currentUser();
     setState(() {
       curUsr = ggg;
     });
+    final userStatus = await Firestore.instance.collection('masters').document(ggg).get();
+    final userStatus1 = userStatus.data['userType'];
+    // box.write('userType', userStatus1);
+    // setState(() {
+    //   usrStatus = userStatus1;
+    // });
+    
+
   }
 
   void getImageFromDevise(ImageSource source) async {
@@ -66,6 +79,8 @@ class _MasterProfileState extends State<MasterProfile> {
       });
     }
   }
+
+
 
   uploadImage(File image) async {
     setState(() {
@@ -125,7 +140,7 @@ class _MasterProfileState extends State<MasterProfile> {
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<FirebaseUser>()?.email;
+    // final user = context.watch<FirebaseUser>()?.email;
 
     return Scaffold(
       backgroundColor: Color(0xFFE9E9E9),
@@ -143,7 +158,7 @@ class _MasterProfileState extends State<MasterProfile> {
         title: Text('Ваш профиль'),
         centerTitle: true,
         actions: [
-          if (user == null || user == '')
+          if (userType.read('userType') == 'master')
             IconButton(
                 icon: Icon(
                   Icons.edit,
@@ -169,7 +184,7 @@ class _MasterProfileState extends State<MasterProfile> {
               })
         ],
       ),
-      body: (widget.userType == null || widget.userType.isEmpty)
+      body: (userType.read('userType') == 'master')
           ? SingleChildScrollView(
               child: StreamBuilder(
                   stream: Firestore.instance
@@ -178,7 +193,7 @@ class _MasterProfileState extends State<MasterProfile> {
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(child: CircularProgressIndicator());
+                      return LinearProgressIndicator();
                     }
 
                     if (snapshot.hasData) {
@@ -320,7 +335,7 @@ class _MasterProfileState extends State<MasterProfile> {
                                                 snapshot.data['category'] !=
                                                         null
                                                     ? snapshot.data['category']
-                                                    .where((element) => element != 'все')
+                                                    .where((element) => element != '1все')
                                                         .map<Widget>(
                                                             (val) => Padding(
                                                                   padding: const EdgeInsets
@@ -328,7 +343,9 @@ class _MasterProfileState extends State<MasterProfile> {
                                                                       vertical:
                                                                           5),
                                                                   child: Text(
-                                                                    '$val',
+                                                                      '${StringUtils.capitalize(
+                                                                        val.toString(),
+                                                                      )}',
                                                                     style: TextStyle(
                                                                         fontSize:
                                                                             18,
@@ -369,8 +386,7 @@ class _MasterProfileState extends State<MasterProfile> {
                                   AsyncSnapshot snapshot) {
                                 if (snapshot.connectionState ==
                                     ConnectionState.waiting) {
-                                  return Center(
-                                      child: CircularProgressIndicator());
+                                  return LinearProgressIndicator();
                                 }
 
                                 if (snapshot.hasData) {
@@ -421,7 +437,7 @@ class _MasterProfileState extends State<MasterProfile> {
                       .snapshots(),
                   builder: (context, snapshot) {
                     if(snapshot.connectionState == ConnectionState.waiting){
-                      return CircularProgressIndicator();
+                      return LinearProgressIndicator();
                     }
                     if (snapshot.hasData) {
                       return Container(

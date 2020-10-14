@@ -1,13 +1,11 @@
 import 'dart:io';
-
+import 'package:basic_utils/basic_utils.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dialogs/flutter_dialogs.dart';
 import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
-import 'package:ordersystem/screens/blocked_screen.dart';
-import 'package:ordersystem/screens/edit_master_profile.dart';
 import 'package:ordersystem/screens/toMaster_message_screen.dart';
 import 'package:ordersystem/services/auth_service.dart';
 import 'package:ordersystem/widgets/comment_widget.dart';
@@ -19,9 +17,14 @@ class ModalMasterProfile extends StatefulWidget {
   final String masterId;
   final String phoneNumber;
   final String masterNameFromFb;
+  final List masterCategoryFromFb;
 
   const ModalMasterProfile(
-      {Key key, this.masterId, this.phoneNumber, this.masterNameFromFb})
+      {Key key,
+      this.masterId,
+      this.phoneNumber,
+      this.masterNameFromFb,
+      this.masterCategoryFromFb})
       : super(key: key);
 
   @override
@@ -93,7 +96,13 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
                         }
                       });
                 } else {
-                  return Center(child: CircularProgressIndicator());
+                  return Center(
+                    child: SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
                 }
               }),
           BasicDialogAction(
@@ -268,15 +277,35 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
                                   children: [
                                     FlatButton.icon(
                                       onPressed: () async {
-                                        await FlutterPhoneDirectCaller
-                                            .callNumber(
-                                                "${widget.phoneNumber}");
+                                        if (snapshot.data['userId'] ==
+                                            user.uid) {
+                                          showPlatformDialog(
+                                            context: context,
+                                            builder: (_) => BasicDialogAlert(
+                                              title: Text("Внимание"),
+                                              content: Text(
+                                                  "Вы не можете звонить самому себе"),
+                                              actions: <Widget>[
+                                                BasicDialogAction(
+                                                  title: Text("OK"),
+                                                  onPressed: () {
+                                                    Navigator.pop(context);
+                                                  },
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        } else {
+                                          await FlutterPhoneDirectCaller
+                                              .callNumber(
+                                                  "${widget.phoneNumber}");
+                                        }
                                       },
                                       icon: Icon(Icons.call),
-                                      label: Text('Звонок'),
+                                      label: Text('Звонок',style: TextStyle(fontSize: 12),),
                                     ),
                                     FlatButton.icon(
-                                      label: Text('Чат'),
+                                      label: Text('Чат',style: TextStyle(fontSize: 12),),
                                       icon: buttonEnabled == true
                                           ? Icon(Icons.email)
                                           : SizedBox(
@@ -286,22 +315,14 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
                                                   CircularProgressIndicator(),
                                             ),
                                       onPressed: () {
-                                        if (user != null) {
-                                          if (buttonEnabled = true) {
-                                            sendMsgButton(user);
-                                            setState(() {
-                                              buttonEnabled = false;
-                                            });
-                                          } else {
-                                            return null;
-                                          }
-                                        } else {
+                                        if (snapshot.data['userId'] ==
+                                            user.uid) {
                                           showPlatformDialog(
                                             context: context,
                                             builder: (_) => BasicDialogAlert(
                                               title: Text("Внимание"),
                                               content: Text(
-                                                  "Авторизуйтесь чтобы продолжить"),
+                                                  "Вы не можете писать самому себе"),
                                               actions: <Widget>[
                                                 BasicDialogAction(
                                                   title: Text("OK"),
@@ -312,30 +333,47 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
                                               ],
                                             ),
                                           );
+                                        } else {
+                                          if (user != null) {
+                                            if (buttonEnabled = true) {
+                                              sendMsgButton(user);
+                                              setState(() {
+                                                buttonEnabled = false;
+                                              });
+                                            } else {
+                                              return null;
+                                            }
+                                          } else {
+                                            showPlatformDialog(
+                                              context: context,
+                                              builder: (_) => BasicDialogAlert(
+                                                title: Text("Внимание"),
+                                                content: Text(
+                                                    "Авторизуйтесь чтобы продолжить"),
+                                                actions: <Widget>[
+                                                  BasicDialogAction(
+                                                    title: Text("OK"),
+                                                    onPressed: () {
+                                                      Navigator.pop(context);
+                                                    },
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }
                                         }
                                       },
                                     ),
                                     FlatButton.icon(
                                       onPressed: () async {
-                                        if (user != null) {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) =>
-                                                  AddNewOrderForm(
-                                                toMaster: widget.masterId,
-                                                masterName:
-                                                    widget.masterNameFromFb,
-                                              ),
-                                            ),
-                                          );
-                                        } else {
+                                        if (snapshot.data['userId'] ==
+                                            user.uid) {
                                           showPlatformDialog(
                                             context: context,
                                             builder: (_) => BasicDialogAlert(
                                               title: Text("Внимание"),
                                               content: Text(
-                                                  "Авторизуйтесь чтобы продолжить"),
+                                                  "Вы не можете звонить самому себе"),
                                               actions: <Widget>[
                                                 BasicDialogAction(
                                                   title: Text("OK"),
@@ -346,10 +384,43 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
                                               ],
                                             ),
                                           );
+                                        } else {
+                                          if (user != null) {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    AddNewOrderForm(
+                                                  toMaster: widget.masterId,
+                                                  masterName:
+                                                      widget.masterNameFromFb,
+                                                  masterCategoryFrpmFb: widget
+                                                      .masterCategoryFromFb,
+                                                ),
+                                              ),
+                                            );
+                                          } else {
+                                            showPlatformDialog(
+                                              context: context,
+                                              builder: (_) => BasicDialogAlert(
+                                                title: Text("Внимание"),
+                                                content: Text(
+                                                    "Авторизуйтесь чтобы продолжить"),
+                                                actions: <Widget>[
+                                                  BasicDialogAction(
+                                                    title: Text("OK"),
+                                                    onPressed: () {
+                                                      Navigator.pop(context);
+                                                    },
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }
                                         }
                                       },
                                       icon: Icon(Icons.add),
-                                      label: Text('Задание'),
+                                      label: Text('Задание',style: TextStyle(fontSize: 12),),
                                     ),
                                   ],
                                 ),
@@ -410,12 +481,14 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: snapshot.data['category']
-                                      .where((element) => element != 'все')
+                                      .where((element) => element != '1все')
                                       .map<Widget>((val) => Padding(
                                             padding: const EdgeInsets.symmetric(
                                                 vertical: 5),
                                             child: Text(
-                                              '$val',
+                                              '${StringUtils.capitalize(
+                                                val.toString(),
+                                              )}',
                                               style: TextStyle(
                                                   fontSize: 18,
                                                   fontWeight: FontWeight.w600),
@@ -474,12 +547,12 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
                   SizedBox(
                     height: 5,
                   ),
-                  FutureBuilder(
-                    future: Firestore.instance
+                  StreamBuilder(
+                    stream: Firestore.instance
                         .collection('comments')
                         .where('masterId', isEqualTo: widget.masterId)
                         .orderBy('createDate', descending: true)
-                        .getDocuments(),
+                        .snapshots(),
                     builder: (BuildContext context, AsyncSnapshot snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
                         return Center(child: LinearProgressIndicator());

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dialogs/flutter_dialogs.dart';
 import 'package:ordersystem/services/auth_service.dart';
 import 'package:ordersystem/widgets/order_screen.dart';
+import 'package:badges/badges.dart';
 
 class Order extends StatefulWidget {
   final orderCreateDate;
@@ -30,6 +31,7 @@ class Order extends StatefulWidget {
 
 class _OrderState extends State<Order> {
   String curUsr;
+  bool newOneStatus;
 
   void getCurrentUser() async {
     var ggg = await Auth().currentUser();
@@ -38,14 +40,17 @@ class _OrderState extends State<Order> {
     });
   }
 
+
+
   @override
   void initState() {
-    getCurrentUser();
     super.initState();
+    getCurrentUser();
   }
 
   @override
   Widget build(BuildContext context) {
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -79,60 +84,31 @@ class _OrderState extends State<Order> {
                       '${widget.orderCreateDate}',
                       style: TextStyle(color: Colors.grey),
                     ),
-//                    Spacer(),
-//                    FutureBuilder(
-//                      future: Firestore.instance
-//                          .collection('responds')
-//                          .where('orderId', isEqualTo: widget.orderId)
-//                          .getDocuments(),
-//                      builder: (context, snapshot) {
-//                        if (snapshot.hasData) {
-//                          final respondId = snapshot.data.documents[0];
-//                          print(respondId['respondId']);
-//                          return StreamBuilder(
-//                            stream: Firestore.instance
-//                                .collection('responds')
-//                                .document('${respondId['respondId']}')
-//                                .collection('respondChat')
-//                                .where(curUsr, isEqualTo: true)
-//                                .snapshots(),
-//                            builder: (context, snapshot) {
-//                              if (snapshot.hasData) if (snapshot
-//                                  .data.documents.length !=
-//                                  0)
-//                                return Padding(
-//                                  padding: const EdgeInsets.only(right: 10),
-//                                  child: new Container(
-//                                    padding: EdgeInsets.all(1),
-//                                    decoration: new BoxDecoration(
-//                                      color: Colors.red,
-//                                      borderRadius: BorderRadius.circular(6),
-//                                    ),
-//                                    constraints: BoxConstraints(
-//                                      minWidth: 18,
-//                                      minHeight: 18,
-//                                    ),
-//                                    child: Center(
-//                                      child: new Text(
-//                                        '${snapshot.data.documents.length}',
-//                                        style: new TextStyle(
-//                                          fontWeight: FontWeight.bold,
-//                                          color: Colors.white,
-//                                          fontSize: 11,
-//                                        ),
-//                                        textAlign: TextAlign.center,
-//                                      ),
-//                                    ),
-//                                  ),
-//                                );
-//                              return SizedBox();
-//                            },
-//                          );
-//                        } else {
-//                          return SizedBox();
-//                        }
-//                      },
-//                    ),
+                    Spacer(),
+                      if(widget.masterUid == curUsr)
+                      StreamBuilder(
+                          stream: Firestore.instance
+                              .collection('orders')
+                              .document(widget.orderId.toString())
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if(snapshot.hasData){
+                              if(snapshot.data['newOne'] == true){
+                                return SizedBox(
+                                  height: 30,
+                                  width: 80,
+                                  child: Chip(
+                                    backgroundColor: Colors.green,
+                                    padding: EdgeInsets.all(0),
+                                    label: Text('Новое',
+                                        style: TextStyle(color: Colors.white)),
+                                  ),
+                                );
+                              }else return SizedBox();
+
+                            }
+                            return SizedBox();
+                          })
                   ],
                 ),
               ),
@@ -145,15 +121,15 @@ class _OrderState extends State<Order> {
                 ),
               ),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text(
-                      '${widget.orderCategory}',
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
+                  // Padding(
+                  //   padding: const EdgeInsets.all(8.0),
+                  //   child: Text(
+                  //     '${widget.orderCategory}',
+                  //     style: TextStyle(fontSize: 16),
+                  //   ),
+                  // ),
                   if (curUsr == widget.orderOwner)
                     IconButton(
                         icon: Icon(

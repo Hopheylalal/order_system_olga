@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:ordersystem/common/platform_exaption_alert_dialog.dart';
 import 'package:ordersystem/common/size_config.dart';
 import 'package:ordersystem/provider/provider.dart';
@@ -35,6 +36,10 @@ class _SignInState extends State<SignIn> {
   bool _validatePass = false;
   bool buttonEnabled = true;
 
+  final saveToken = GetStorage();
+  final userType = GetStorage();
+
+
   void _emailEditingComplete() {
     final newFocus = _email.isEmpty ? _emailFocusNode : _passwordFocusNode;
     FocusScope.of(context).requestFocus(newFocus);
@@ -53,8 +58,12 @@ class _SignInState extends State<SignIn> {
               .collection('masters')
               .document('${value.uid}')
               .updateData(
-            {'token': context.read<DataProvider>().token},
-          );
+            {'token': saveToken.read('token')},
+          ).whenComplete(() async{
+            final result = await Firestore.instance.collection('masters').document(value.uid).get();
+            final userTypeFB = result.data['userType'];
+            userType.write('userType', userTypeFB);
+          });
           Navigator.popUntil(context, (route) => route.isFirst);
         },
       );
@@ -106,8 +115,8 @@ class _SignInState extends State<SignIn> {
                 Padding(
                   padding: const EdgeInsets.all(10.0),
                   child: Text(
-                    'Вход для заказчиков',
-                    style: TextStyle(fontSize: 18),
+                    'Войдите или зарегистрируйтесь',
+                    style: TextStyle(fontSize: 16),
                   ),
                 ),
                 Padding(

@@ -123,13 +123,13 @@ exports.commentTrigger = functions.firestore.document(
 
         var payload = {
             notification: {
-                title: 'Новый комментарий от',
+                title: 'Новый отзыв от',
                 body: ownerName,
                 sound: "default"
 
             },
              data: {
-               title: 'Новый комментарий от',
+               title: 'Новый отзыв от',
                content: ownerName,
                clickAction: 'FLUTTER_NOTIFICATION_CLICK',
           }

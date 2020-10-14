@@ -11,6 +11,8 @@ class Comment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    timeAgo.setLocaleMessages('fr', timeAgo.RuMessages());
+
     return Container(
       width: double.infinity,
       child: Card(

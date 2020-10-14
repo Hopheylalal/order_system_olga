@@ -9,6 +9,10 @@ import 'package:ordersystem/provider/provider.dart';
 import 'package:ordersystem/screens/auth/sign_in.dart';
 import 'package:ordersystem/screens/master_profile.dart';
 import 'package:provider/provider.dart';
+import 'package:get_storage/get_storage.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
+
+
 
 class AuthMAster extends StatefulWidget {
   @override
@@ -20,6 +24,11 @@ class _AuthMAsterState extends State<AuthMAster> {
   final _formKey = GlobalKey<FormState>();
   bool isLoading = false;
   final _codeController = TextEditingController();
+  bool progress = false;
+
+  final saveToken = GetStorage();
+
+
 
   var maskFormatter = new MaskTextInputFormatter(
     mask: '+7 (###) ###-##-##',
@@ -86,94 +95,103 @@ class _AuthMAsterState extends State<AuthMAster> {
                 context: context,
                 barrierDismissible: false,
                 builder: (context) {
-                  return AlertDialog(
-                    title: Text("Введите SMS код"),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        TextFormField(
-                          textAlign: TextAlign.center,
-                          maxLength: 6,
-                          keyboardType: TextInputType.number,
-                          decoration:
-                              InputDecoration(hintText: '-  -  -  -  -  -'),
-                          controller: _codeController,
+                  return FlutterEasyLoading(
+                    child: AlertDialog(
+                      title:  Text("Введите SMS код"),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          TextFormField(
+                            textAlign: TextAlign.center,
+                            maxLength: 6,
+                            keyboardType: TextInputType.number,
+                            decoration:
+                                InputDecoration(hintText: '-  -  -  -  -  -'),
+                            controller: _codeController,
+                          ),
+                        ],
+                      ),
+                      actions: <Widget>[
+                         FlatButton(
+                          child: Text("ОК"),
+                          textColor: Colors.white,
+                          color: Colors.blue,
+                          onPressed: () async {
+
+                            // showLoadingDialog();
+                            EasyLoading.show(status: 'Загрузка...',);
+
+                            print('MYTOKEN${context.read<DataProvider>().token}');
+
+                            final code = _codeController.text.trim();
+                            AuthCredential credential =
+                                PhoneAuthProvider.getCredential(
+                                    verificationId: verificationId,
+                                    smsCode: code);
+
+
+                            AuthResult result =
+                                await _auth.signInWithCredential(credential).catchError((err){
+                                  print(err);
+                                  EasyLoading.dismiss();
+                                  PlatformAlertDialog(
+                                    title: 'Внимание',
+                                    content: 'Неверный код',
+                                    defaultActionText: 'Ok',
+                                  ).show(context);
+                                });
+
+                            FirebaseUser user = result.user;
+
+                            if (user != null) {
+                              EasyLoading.dismiss();
+                              setState(() {
+                                isLoading = false;
+
+                              });
+//
+                              await Firestore.instance
+                                  .collection('masters')
+                                  .document('${user.uid}')
+                                  .updateData(
+                                {'token': saveToken.read('token')},
+                              );
+
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => MasterProfile(
+                                    status: 'reg',
+                                    userType: null,
+                                  ),
+                                ),
+                              );
+                            } else {
+                              setState(() {
+                                isLoading = false;
+                              });
+                              Navigator.of(context).pop();
+                              PlatformAlertDialog(
+                                title: 'Внимание',
+                                content: 'Ошибка авторизации.',
+                                defaultActionText: 'Ok',
+                              ).show(context);
+                            }
+                          },
+                        ),
+                        FlatButton(
+                          child: Text("Отмена"),
+                          textColor: Colors.white,
+                          color: Colors.blue,
+                          onPressed: () {
+                            setState(() {
+                              isLoading = false;
+                            });
+                            Navigator.pop(context);
+                          }
                         ),
                       ],
                     ),
-                    actions: <Widget>[
-                      FlatButton(
-                        child: Text("ОК"),
-                        textColor: Colors.white,
-                        color: Colors.blue,
-                        onPressed: () async {
-                          print('MYTOKEN${context.read<DataProvider>().token}');
-
-                          final code = _codeController.text.trim();
-                          AuthCredential credential =
-                              PhoneAuthProvider.getCredential(
-                                  verificationId: verificationId,
-                                  smsCode: code);
-
-
-                          AuthResult result =
-                              await _auth.signInWithCredential(credential).catchError((err){
-                                print(err);
-                                PlatformAlertDialog(
-                                  title: 'Внимание',
-                                  content: 'Неверный код',
-                                  defaultActionText: 'Ok',
-                                ).show(context);
-                              });
-
-                          FirebaseUser user = result.user;
-
-                          if (user != null) {
-                            setState(() {
-                              isLoading = false;
-                            });
-//
-                            await Firestore.instance
-                                .collection('masters')
-                                .document('${user.uid}')
-                                .updateData(
-                              {'token': context.read<DataProvider>().token},
-                            );
-
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => MasterProfile(
-                                  status: 'reg',
-                                  userType: null,
-                                ),
-                              ),
-                            );
-                          } else {
-                            setState(() {
-                              isLoading = false;
-                            });
-                            Navigator.of(context).pop();
-                            PlatformAlertDialog(
-                              title: 'Внимание',
-                              content: 'Ошибка авторизации.',
-                              defaultActionText: 'Ok',
-                            ).show(context);
-                          }
-                        },
-                      ),
-                      FlatButton(
-                        child: Text("Отмена"),
-                        textColor: Colors.white,
-                        color: Colors.blue,
-                        onPressed: () {
-                          setState(() {
-                            isLoading = false;
-                          });
-                          Navigator.pop(context);
-                        }
-                      ),
-                    ],
                   );
                 },
               );
@@ -224,71 +242,7 @@ class _AuthMAsterState extends State<AuthMAster> {
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: Text(
-                'Вход для мастеров',
-                style: TextStyle(fontSize: 18),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: Form(
-                key: _formKey,
-                child: TextFormField(
-                  keyboardType: TextInputType.phone,
-                  inputFormatters: [maskFormatter],
-                  onSaved: (val) {
-                    phoneNumber = val;
-                  },
-                  validator: (val) =>
-                      val.isEmpty ? 'Введите ваш номер телефона' : null,
-                  decoration: InputDecoration(labelText: 'Ваш номер телефона'),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: ButtonTheme(
-                minWidth: double.maxFinite,
-                height: 45.0,
-                child: RaisedButton(
-                  onPressed: isLoading
-                      ? null
-                      : () async {
-                          print(phoneNumber);
-                          if (_formKey.currentState.validate()) {
-                            _formKey.currentState.save();
-                            setState(() {
-                              isLoading = true;
-                            });
-                            FocusScope.of(context).unfocus();
-                            getMAsterExist(context, phoneNumber);
-                            isLoading = false;
-                          }
-                        },
-                  child: isLoading
-                      ? SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(),
-                        )
-                      : Center(
-                          child: Text('Вход',style: TextStyle(color: Colors.white),),
-                        ),
-                ),
-              ),
-            ),
-            SizedBox(
-              height: 20,
-            ),
-            SizedBox(height: 360, child: SignIn()),
-          ],
-        ),
-      ),
+      body: SizedBox(height: 360, child: SignIn()),
     );
   }
 }

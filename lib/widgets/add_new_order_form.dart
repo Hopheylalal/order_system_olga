@@ -3,6 +3,7 @@ import 'package:dropdown_formfield/dropdown_formfield.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dialogs/flutter_dialogs.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:ordersystem/common/platform_alert_dialog.dart';
 import 'package:ordersystem/screens/blocked_screen.dart';
 import 'package:ordersystem/services/auth_service.dart';
@@ -11,8 +12,9 @@ import 'package:provider/provider.dart';
 class AddNewOrderForm extends StatefulWidget {
   final toMaster;
   final masterName;
+  final masterCategoryFrpmFb;
 
-  const AddNewOrderForm({Key key, this.toMaster, this.masterName}) : super(key: key);
+  const AddNewOrderForm({Key key, this.toMaster, this.masterName, this.masterCategoryFrpmFb}) : super(key: key);
   @override
   _AddNewOrderFormState createState() => _AddNewOrderFormState();
 }
@@ -29,6 +31,8 @@ class _AddNewOrderFormState extends State<AddNewOrderForm> {
   String name;
   bool buttonEnabled = true;
   bool blockedStatus = false;
+
+  final userType = GetStorage();
 
   final FocusNode _shortFocusNode = FocusNode();
   final FocusNode _longFocusNode = FocusNode();
@@ -55,7 +59,7 @@ class _AddNewOrderFormState extends State<AddNewOrderForm> {
   }
 
   addNewMission(BuildContext context, user) async {
-    if(user.phoneNumber == null || user.phoneNumber == ''){
+    if(userType.read('userType') != 'master'){
     try {
       buttonEnabled = false;
       int dateId = DateTime.now().millisecondsSinceEpoch;
@@ -69,7 +73,7 @@ class _AddNewOrderFormState extends State<AddNewOrderForm> {
         'title': aboutShort,
         'description': aboutLong,
         'orderId': dateId,
-        'category': _chosenValue,
+        'category': widget.masterCategoryFrpmFb,
         'toMaster' : widget.toMaster,
         'masterName' : widget.masterName,
         'newOne' : true,
@@ -184,27 +188,27 @@ class _AddNewOrderFormState extends State<AddNewOrderForm> {
                     SizedBox(
                       height: 20,
                     ),
-                    SizedBox(
-                      width: double.maxFinite,
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        hint: Text('Выберите специализацию',),
-                        value: _chosenValue,
-                        items: snapshot.data['cats']
-                            .cast<String>()
-                            .map<DropdownMenuItem<String>>((String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        }).toList(),
-                        onChanged: (String value) {
-                          setState(() {
-                            _chosenValue = value;
-                          });
-                        },
-                      ),
-                    ),
+                    // SizedBox(
+                    //   width: double.maxFinite,
+                    //   child: DropdownButton<String>(
+                    //     isExpanded: true,
+                    //     hint: Text('Выберите специализацию',),
+                    //     value: _chosenValue,
+                    //     items: snapshot.data['cats']
+                    //         .cast<String>()
+                    //         .map<DropdownMenuItem<String>>((String value) {
+                    //       return DropdownMenuItem<String>(
+                    //         value: value,
+                    //         child: Text(value),
+                    //       );
+                    //     }).toList(),
+                    //     onChanged: (String value) {
+                    //       setState(() {
+                    //         _chosenValue = value;
+                    //       });
+                    //     },
+                    //   ),
+                    // ),
 
                     TextFormField(
                       enableSuggestions: true,

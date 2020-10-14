@@ -7,9 +7,9 @@ import 'package:ordersystem/services/auth_service.dart';
 
 class UpdateOrder extends StatefulWidget {
   final orderId;
-  final categoryChosen;
 
-  const UpdateOrder({Key key, this.orderId, this.categoryChosen})
+
+  const UpdateOrder({Key key, this.orderId, })
       : super(key: key);
 
   @override
@@ -62,7 +62,6 @@ class _UpdateOrderState extends State<UpdateOrder> {
           .updateData({
         'title': aboutShort,
         'description': aboutLong,
-        'category': _chosenValue == null ? widget.categoryChosen : _chosenValue,
       }).then((_) {
         _scaffoldKey.currentState.showSnackBar(
           new SnackBar(
@@ -128,7 +127,6 @@ class _UpdateOrderState extends State<UpdateOrder> {
 
   @override
   Widget build(BuildContext context) {
-    print(widget.categoryChosen);
     return Scaffold(
       key: _scaffoldKey,
       appBar: AppBar(
@@ -170,32 +168,7 @@ class _UpdateOrderState extends State<UpdateOrder> {
                           SizedBox(
                             height: 20,
                           ),
-                          SizedBox(
-                            width: double.maxFinite,
-                            child: DropdownButton<String>(
-                              isExpanded: true,
-                              hint: Text(
-                                'Выберите специализацию',
-                              ),
-                              value: _chosenValue == null
-                                  ? snapshot2.data['category']
-                                  : _chosenValue,
-                              items: snapshot.data['cats']
-                                  .cast<String>()
-                                  .map<DropdownMenuItem<String>>(
-                                      (String value) {
-                                return DropdownMenuItem<String>(
-                                  value: value,
-                                  child: Text(value),
-                                );
-                              }).toList(),
-                              onChanged: (String value) {
-                                setState(() {
-                                  _chosenValue = value;
-                                });
-                              },
-                            ),
-                          ),
+
                           TextFormField(
                             enableSuggestions: true,
                             textCapitalization: TextCapitalization.sentences,

@@ -11,8 +11,8 @@
     <application
         android:requestLegacyExternalStorage="true"
         android:name="io.flutter.app.FlutterApplication"
-        android:label="ordersystem"
-        android:icon="@mipmap/ic_launcher">
+        android:label="Мастер рядом"
+        android:icon="@mipmap/launcher_icon">
 
         <meta-data android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyDlE8fe6amRsClOzkM8_X7LHE6EaBfp8bM"/>

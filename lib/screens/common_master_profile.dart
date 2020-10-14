@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:basic_utils/basic_utils.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,6 +10,8 @@ import 'package:ordersystem/screens/edit_master_profile.dart';
 import 'package:ordersystem/services/auth_service.dart';
 import 'package:ordersystem/widgets/comment_widget.dart';
 import 'package:provider/provider.dart';
+import 'package:load/load.dart';
+
 
 import 'blocked_screen.dart';
 
@@ -96,12 +99,12 @@ class _CommonMasterProfileState extends State<CommonMasterProfile> {
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
                   return BasicDialogAction(
-                      title: loading == false ? Text("Добавить") : CircularProgressIndicator(),
+                      title: Text("Добавить"),
                       onPressed: () async {
+
                         if (_formKey.currentState.validate()) {
-                          setState(() {
-                            loading = true;
-                          });
+                          showLoadingDialog();
+
                           final dateTime = DateTime.now();
                           await Firestore.instance
                               .collection('comments')
@@ -113,18 +116,17 @@ class _CommonMasterProfileState extends State<CommonMasterProfile> {
                             'masterId': widget.masterId,
                             'ownerId': user.uid
                           }).whenComplete(() {
-                            setState(() {
-                              loading = false;
-                            });
+                            hideLoadingDialog();
+                            Navigator.pop(context);
                           });
 
                           // setState(() {});
 
-                          Navigator.pop(context);
+
                         }
                       });
                 } else {
-                  return LinearProgressIndicator();
+                  return CircularProgressIndicator();
                 }
               }),
           BasicDialogAction(
@@ -319,12 +321,14 @@ class _CommonMasterProfileState extends State<CommonMasterProfile> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: snapshot.data['category']
-                                            .where((element) => element != 'все')
+                                            .where((element) => element != '1все')
                                             .map<Widget>((val) => Padding(
                                                   padding: const EdgeInsets
                                                       .symmetric(vertical: 5),
                                                   child: Text(
-                                                    '$val',
+                                                      '${StringUtils.capitalize(
+                                                        val.toString(),
+                                                      )}',
                                                     style: TextStyle(
                                                         fontSize: 18,
                                                         fontWeight:
@@ -353,12 +357,12 @@ class _CommonMasterProfileState extends State<CommonMasterProfile> {
                         SizedBox(
                           height: 5,
                         ),
-                        FutureBuilder(
-                          future: Firestore.instance
+                        StreamBuilder(
+                          stream: Firestore.instance
                               .collection('comments')
                               .where('masterId', isEqualTo: widget.masterId)
                               .orderBy('createDate', descending: true)
-                              .getDocuments(),
+                              .snapshots(),
                           builder:
                               (BuildContext context, AsyncSnapshot snapshot) {
                             if (snapshot.connectionState ==

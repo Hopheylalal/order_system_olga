@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dialogs/flutter_dialogs.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:ordersystem/services/auth_service.dart';
 import 'package:ordersystem/widgets/add_new_order_form.dart';
 import 'package:ordersystem/widgets/order_filter.dart';
@@ -20,6 +21,8 @@ class _AllOrdersState extends State<AllOrders> {
   String curUsr;
   List<String> catMasters;
   List catCategory;
+  final userType = GetStorage();
+
 
 
   List _checked = [];
@@ -96,7 +99,7 @@ class _AllOrdersState extends State<AllOrders> {
               ),
             )
           : StreamBuilder(
-              stream: user.phoneNumber == null || user.phoneNumber == ''
+              stream: userType.read('userType') == 'user'
                   ? Firestore.instance
                       .collection('orders')
                       .where('owner', isEqualTo: user.uid)

@@ -6,8 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get_storage/get_storage.dart';
 
-
-
 class DataProvider with ChangeNotifier {
   Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
@@ -20,7 +18,7 @@ class DataProvider with ChangeNotifier {
 
   List allOrdersList = [];
 
-  List<String> checkedCat = ['все'];
+  List<String> checkedCat = ['1все'];
 
   String _userType;
 
@@ -30,16 +28,46 @@ class DataProvider with ChangeNotifier {
   int bageRespondCount = 0;
   LatLng userPositionProvider;
 
+  int newMessage;
+
+  getMessagesFromFireStore(user) async {
+    final chatIds = [];
+    final chatList = [];
+
+    final msgArrFb = await Firestore.instance
+        .collection('messages')
+        .where('array', arrayContains: user)
+        .getDocuments()
+        .then((val) => val.documents);
+
+    msgArrFb.forEach((element) {
+      chatIds.add(element.documentID);
+    });
+
+    for (int i = 0; i < chatIds.length; i++) {
+      var ff = await Firestore.instance
+          .collection("messages")
+          .document(chatIds[i])
+          .collection("chat")
+          .getDocuments();
+      var fff = ff.documents.where((element) => element.data['$user'] == true);
+      chatList.addAll(fff.toList());
+
+      notifyListeners();
+    }
+
+    newMessage = chatList.length;
+  }
+
   void getUserPosition(userPos) {
     userPositionProvider = userPos;
   }
-
 
   final saveBoxMsg1 = GetStorage();
 
   void bageMessageCountIncr() async {
     int msg = saveBoxMsg1.read('newMsg1');
-    saveBoxMsg1.write('newMsg1',  msg == null ? msg = 1 : msg + 1);
+    saveBoxMsg1.write('newMsg1', msg == null ? msg = 1 : msg + 1);
     print(saveBoxMsg1.read('newMsg1'));
     notifyListeners();
   }

@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_dialogs/flutter_dialogs.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:ordersystem/common/platform_alert_dialog.dart';
 import 'package:ordersystem/provider/provider.dart';
 import 'package:ordersystem/screens/map_screen.dart';
+import 'package:ordersystem/services/auth_service.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -30,6 +32,8 @@ class _HomeState extends State<Home> {
   PageController _pageController;
   int pageIndex = 0;
   final saveBoxMsg1 = GetStorage();
+  final saveToken = GetStorage();
+  final saveStatus = GetStorage();
 
   void changeIndex() {
     setState(() {
@@ -37,71 +41,62 @@ class _HomeState extends State<Home> {
     });
   }
 
-  Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
-
-  int messageBeigeCounter;
-  int respondBeigeCounter;
-
-  List test = [];
-
-  setBeigeMsg() async {
-    final SharedPreferences prefs = await _prefs;
-    setState(() {
-      messageBeigeCounter = (prefs.getInt('bageMessageCount'));
-    });
-  }
-
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging();
+  String userType;
 
-  void statusBeigeUpdate(type) {
-    if (type == 'msg') {
-      context.read<DataProvider>().bageMessageCountIncr();
-    }
+  getUserType(user) async {
+    var data =
+        await Firestore.instance.collection('masters').document(user).get();
+    var userTp = data.data['userType'];
+    setState(() {
+      userType = userTp;
+    });
   }
 
-  void getMessages() {
+  void getMessages(user) {
     _firebaseMessaging.configure(onMessage: (msg) {
-      String beigeType = msg['data']['type'];
-      statusBeigeUpdate(beigeType);
+      context
+          .watch<DataProvider>()
+          .getMessagesFromFireStore(context.read<FirebaseUser>().uid);
       print(msg);
       return;
     },
 //        onBackgroundMessage: myBackgroundMessageHandler,
         onLaunch: (msg) {
-      String beigeType = msg['data']['type'];
-      statusBeigeUpdate(beigeType);
+      context
+          .watch<DataProvider>()
+          .getMessagesFromFireStore(context.read<FirebaseUser>().uid);
       print(msg);
       return;
     }, onResume: (msg) {
       String beigeType = msg['data']['type'];
-      statusBeigeUpdate(beigeType);
+      context
+          .watch<DataProvider>()
+          .getMessagesFromFireStore(context.read<FirebaseUser>().uid);
       print(msg);
       return;
     });
   }
 
-  void getMessagesIos() {
+  void getMessagesIos(user) {
     _firebaseMessaging.configure(onMessage: (msg) {
-      context.read<DataProvider>().bageMessageCountIncr();
-      if (msg.containsValue('msg')) {
-        context.read<DataProvider>().bageMessageCountIncr();
-      }
-
+      context
+          .watch<DataProvider>()
+          .getMessagesFromFireStore(context.read<FirebaseUser>().uid);
       print(msg);
       return;
     },
 //        onBackgroundMessage: myBackgroundMessageHandler,
         onLaunch: (msg) {
-      if (msg.containsValue('msg')) {
-        context.read<DataProvider>().bageMessageCountIncr();
-      }
-
+      context
+          .watch<DataProvider>()
+          .getMessagesFromFireStore(context.read<FirebaseUser>().uid);
       print(msg);
       return;
     }, onResume: (msg) {
-      if (msg.containsValue('msg')) {
-        context.read<DataProvider>().bageMessageCountIncr();
-      }
+      context
+          .watch<DataProvider>()
+          .getMessagesFromFireStore(context.read<FirebaseUser>().uid);
 
       print(msg);
       return;
@@ -112,6 +107,8 @@ class _HomeState extends State<Home> {
     _firebaseMessaging.getToken().then((deviceToken) {
       print("Firebase Device token: $deviceToken");
       context.read<DataProvider>().getToken(deviceToken);
+      saveToken.write('token', deviceToken);
+
     });
   }
 
@@ -142,63 +139,49 @@ class _HomeState extends State<Home> {
       }
     });
   }
+  Auth auth = Auth();
+  String userUID;
 
-  int newMessage;
-
-  getMessagesFromFireStore(user) async {
-    final chatIds = [];
-    final chatList = [];
-    int msgCount;
-
-    final msgArrFb = await Firestore.instance
-        .collection('messages')
-        .where('array', arrayContains: user)
-        .getDocuments()
-        .then((val) => val.documents);
-
-    msgArrFb.forEach((element) {
-      chatIds.add(element.documentID);
-    });
-
-    for (int i = 0; i < chatIds.length; i++) {
-      Firestore.instance
-          .collection("messages")
-          .document(chatIds[i])
-          .collection("chat")
-          .getDocuments()
-          .then(
-            (value) => value.documents.where((element) {
-              return element.data['$user'] == true;
-
-            }),
-          );
-      
-
-
+  getUserData()async{
+    final user = await auth.currentUser();
+    print('444$user');
+    if(user != null){
+     await getUserType(user);
+      if (user != null) {
+        context
+            .read<DataProvider>()
+            .getMessagesFromFireStore(user);
+      }
     }
 
-    print(chatList.length);
+
+
   }
 
   @override
   void initState() {
     super.initState();
+
+    getUserData();
+
     if (widget.fromWhere == '1') {
       changeIndex();
     }
     _firebaseMessaging.requestNotificationPermissions();
 
-    Future.delayed(Duration.zero, () {
-      this.firebaseCloudMessagingListeners(context);
-    });
+    // Future.delayed(Duration.zero, () {
+    //   this.firebaseCloudMessagingListeners(context);
+    // });
+    this.firebaseCloudMessagingListeners(context);
+
 
     if (Platform.isAndroid) {
-      getMessages();
+      if (context.read<FirebaseUser>() != null)
+        getMessages(context.read<FirebaseUser>().uid);
     } else if (Platform.isIOS) {
-      getMessagesIos();
+      if (context.read<FirebaseUser>() != null)
+        getMessagesIos(context.read<FirebaseUser>().uid);
     }
-
-    setBeigeMsg();
   }
 
   onPageChanged(int pageIndex) {
@@ -216,21 +199,12 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
-    int msgCount = saveBoxMsg1.read('newMsg1');
 
-    final countBage = context.watch<DataProvider>().bageCounter;
     final user = context.watch<FirebaseUser>();
-    setState(() {
-      setBeigeMsg();
-    });
+    if (context.watch<FirebaseUser>() != null)
+      context.watch<DataProvider>().getMessagesFromFireStore(user.uid);
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        child: Icon(Icons.add),
-        onPressed: () {
-          getMessagesFromFireStore(user.uid);
-        },
-      ),
       body: tabs[pageIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: pageIndex,
@@ -251,31 +225,43 @@ class _HomeState extends State<Home> {
             title: Text('Карта'),
           ),
           BottomNavigationBarItem(
-            icon: msgCount == null || msgCount == 0
+            icon: context.watch<DataProvider>().newMessage == null ||
+                    context.watch<DataProvider>().newMessage == 0
                 ? Icon(Icons.email)
-                : Badge(
+                : user!= null ? Badge(
+              animationType: BadgeAnimationType.scale,
                     badgeContent: Text(
-                      '$msgCount',
+                      '${context.watch<DataProvider>().newMessage}',
                       style: TextStyle(color: Colors.white),
                     ),
                     child: Icon(Icons.email),
-                  ),
+                  ) : Icon(Icons.email),
             title: Text('Уведомления'),
           ),
           BottomNavigationBarItem(
-            icon: StreamBuilder(
-                stream: Firestore.instance.collection('orders').snapshots(),
-                builder: (context, snapshot) {
-                  return user != null
-                      ? Badge(
+            icon: saveStatus.read('userType') == 'master'
+                ? StreamBuilder(
+                    stream: Firestore.instance
+                        .collection('orders')
+                        .where('toMaster', isEqualTo: user?.uid)
+                        .where('newOne', isEqualTo: true)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if(snapshot.hasData){
+                        return user != null && snapshot.data.documents.length != 0
+                            ? Badge(
+                          animationType: BadgeAnimationType.scale,
                           badgeContent: Text(
-                            '3',
+                            '${snapshot.data.documents.length}',
                             style: TextStyle(color: Colors.white),
                           ),
                           child: const Icon(Icons.library_books),
                         )
-                      : Icon(Icons.library_books);
-                }),
+                            : Icon(Icons.library_books);
+                      }
+                      return Icon(Icons.library_books);
+                    })
+                : Icon(Icons.library_books),
             title: Text('Мои задания'),
           ),
           BottomNavigationBarItem(

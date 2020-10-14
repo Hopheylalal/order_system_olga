@@ -37,7 +37,7 @@ class _SettingsState extends State<Settings> {
       appBar: AppBar(
 
         centerTitle: true,
-        title: Text('Настройки'),
+        title: Text('Ваш профиль'),
       ),
       body: SingleChildScrollView(
         child: Column(

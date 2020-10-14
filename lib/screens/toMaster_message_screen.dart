@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:ordersystem/provider/provider.dart';
 import 'package:ordersystem/services/auth_service.dart';
 import 'package:ordersystem/widgets/msg_widget.dart';
 import 'package:provider/provider.dart';
@@ -103,7 +104,7 @@ class _ToMasterMessageScreenState extends State<ToMasterMessageScreen> {
         avatar = userDataFrom.data['imgUrl'];
         saveBox.write('avatar', avatar);
         saveBox.write('userName', userName);
-        saveBox.write('userType', userType);
+        saveBox.write('userType1', userType);
       } else if (userId == widget.to) {
         DocumentSnapshot userDataTo = await Firestore.instance
             .collection('masters')
@@ -114,7 +115,7 @@ class _ToMasterMessageScreenState extends State<ToMasterMessageScreen> {
         avatar = userDataTo.data['imgUrl'];
         saveBox.write('avatar', avatar);
         saveBox.write('userName', userName);
-        saveBox.write('userType', userType);
+        saveBox.write('userType1', userType);
       }
     } catch (e) {
       print(e.toString());
@@ -129,6 +130,8 @@ class _ToMasterMessageScreenState extends State<ToMasterMessageScreen> {
 
     return Scaffold(
       backgroundColor: Color(0xFFE9E9E9),
+      resizeToAvoidBottomInset: true,
+
       appBar: AppBar(
         title: Text(
           userName ?? saveBox.read('userName') ?? '',
@@ -140,8 +143,12 @@ class _ToMasterMessageScreenState extends State<ToMasterMessageScreen> {
               size: 40,
               color: Colors.white,
             ),
-            onPressed: () {
+            onPressed: () async{
+              // context.read<DataProvider>().newMessage = 0;
+
               delNewMsg(user.uid);
+              context.read<DataProvider>().getMessagesFromFireStore(user.uid);
+
               Navigator.pop(context);
             }),
         actions: <Widget>[
@@ -166,7 +173,7 @@ class _ToMasterMessageScreenState extends State<ToMasterMessageScreen> {
                 radius: 23,
                 child: ClipOval(
                   child: CachedNetworkImage(
-                    imageUrl: avatar?? saveBox.read('avatar')?? '',
+                    imageUrl: avatar ?? saveBox.read('avatar') ?? '',
                     progressIndicatorBuilder:
                         (context, url, downloadProgress) =>
                             CircularProgressIndicator(
@@ -242,21 +249,23 @@ class _ToMasterMessageScreenState extends State<ToMasterMessageScreen> {
                       ),
                     ),
                   ),
+
                   FutureBuilder(
                       future: Firestore.instance
                           .collection('messages')
                           .document('${widget.chatId}')
                           .get(),
                       builder: (context, snapshot) {
-
-                        if(snapshot.connectionState == ConnectionState.waiting){
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
                           return IconButton(
-                              icon: Icon(
-                                Icons.send,
-                                color: Colors.blue,
-                              ),
-                            onPressed: (){},
-                          );}
+                            icon: Icon(
+                              Icons.send,
+                              color: Colors.blue,
+                            ),
+                            onPressed: () {},
+                          );
+                        }
                         if (snapshot.hasData) {
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 10),
@@ -306,8 +315,6 @@ class _ToMasterMessageScreenState extends State<ToMasterMessageScreen> {
                                             widget.to: true,
                                             widget.from: true,
                                             'chatId': widget.chatId
-                                          }).whenComplete(() {
-                                            Firestore.instance.collection('messages').document(widget.chatId).setData({'newUserMsg' : FieldValue.increment});
                                           });
                                           textEditingController.clear();
                                         }

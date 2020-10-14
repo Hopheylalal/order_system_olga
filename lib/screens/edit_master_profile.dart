@@ -1,16 +1,21 @@
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:multiselect_formfield/multiselect_formfield.dart';
 import 'package:ordersystem/common/platform_alert_dialog.dart';
+import 'package:ordersystem/provider/provider.dart';
 import 'package:ordersystem/services/auth_service.dart';
 import 'package:ordersystem/widgets/add_marker_master.dart';
 import 'package:ordersystem/widgets/master_category_edit.dart';
 import 'package:ordersystem/widgets/order_filter.dart';
+import 'package:provider/provider.dart';
 
 class EditMasterProfile extends StatefulWidget {
   @override
@@ -33,6 +38,7 @@ class _EditMasterProfileState extends State<EditMasterProfile> {
   List<Marker> masterPoint;
 
   final _formKey = GlobalKey<FormState>();
+  final saveToken = GetStorage();
 
   final FocusNode _nameFocusNode = FocusNode();
   final FocusNode _longFocusNode = FocusNode();
@@ -60,28 +66,32 @@ class _EditMasterProfileState extends State<EditMasterProfile> {
     if (_selectedFile != null) {
       return GestureDetector(
         onTap: () {
-          showDialog(
-            context: context,
-            child: new AlertDialog(
-              content: new Text("Выберете фото"),
-              actions: [
-                FlatButton(
-                  onPressed: () {
-                    getImageFromDevise(ImageSource.camera);
-                    Navigator.pop(context);
-                  },
-                  child: Text('Камера'),
-                ),
-                FlatButton(
-                  onPressed: () {
-                    getImageFromDevise(ImageSource.gallery);
-                    Navigator.pop(context);
-                  },
-                  child: Text('Галерея'),
-                )
-              ],
-            ),
-          );
+          try {
+            showDialog(
+              context: context,
+              child: new AlertDialog(
+                content: new Text("Выберете фото"),
+                actions: [
+                  FlatButton(
+                    onPressed: () {
+                      getImageFromDevise(ImageSource.camera);
+                      Navigator.pop(context);
+                    },
+                    child: Text('Камера'),
+                  ),
+                  FlatButton(
+                    onPressed: () {
+                      getImageFromDevise(ImageSource.gallery);
+                      Navigator.pop(context);
+                    },
+                    child: Text('Галерея'),
+                  )
+                ],
+              ),
+            );
+          } catch (e) {
+            print(e);
+          }
         },
         child: CircleAvatar(
           radius: 65,
@@ -124,7 +134,14 @@ class _EditMasterProfileState extends State<EditMasterProfile> {
         child: CircleAvatar(
           radius: 65,
           child: ClipOval(
-            child: Image.network(snapshot),
+            child: CachedNetworkImage(
+              imageUrl: snapshot,
+              progressIndicatorBuilder: (context, url, downloadProgress) =>
+                  CircularProgressIndicator(value: downloadProgress.progress),
+              errorWidget: (context, url, error) => Icon(Icons.account_circle),
+            ),
+
+            // Image.network(snapshot),
           ),
           backgroundColor: Colors.blue,
         ),
@@ -145,6 +162,13 @@ class _EditMasterProfileState extends State<EditMasterProfile> {
         maxWidth: 150,
         maxHeight: 150,
         compressFormat: ImageCompressFormat.jpg,
+        androidUiSettings: AndroidUiSettings(
+            toolbarTitle: 'Редактор',
+            toolbarWidgetColor: Colors.blue,
+            hideBottomControls: true),
+        iosUiSettings: IOSUiSettings(
+          title: 'Редактор',
+        ),
       );
       uploadImage(cropped);
       this.setState(() {
@@ -207,8 +231,8 @@ class _EditMasterProfileState extends State<EditMasterProfile> {
         'imgUrl': imgUrl == null ? imgUrl = newImg : imgUrl,
         'aboutShort': aboutShort,
         'aboutLong': aboutLong,
-        'geoPoint' : GeoPoint(
-            masterPoint.first.position.latitude,
+        'token': saveToken.read('token'),
+        'geoPoint': GeoPoint(masterPoint.first.position.latitude,
             masterPoint.last.position.longitude)
       }).then(
         (_) => Navigator.pop(context),
@@ -216,7 +240,7 @@ class _EditMasterProfileState extends State<EditMasterProfile> {
     } catch (e) {
       PlatformAlertDialog(
         title: 'Внимание',
-        content: 'Неизвестная ошибка',
+        content: 'Обновите ваше местоположение',
         defaultActionText: 'Ok',
       ).show(context);
     }
@@ -247,6 +271,8 @@ class _EditMasterProfileState extends State<EditMasterProfile> {
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<FirebaseUser>().uid;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Редактировать профиль'),
@@ -260,128 +286,128 @@ class _EditMasterProfileState extends State<EditMasterProfile> {
               FutureBuilder(
                 future: Firestore.instance
                     .collection('masters')
-                    .document(curUsr)
+                    .document(user)
                     .get(),
                 builder: (BuildContext context, snapshot) {
-                  if (!snapshot.hasData)
-                    return Center(child: CircularProgressIndicator());
-//                  setState(() {
-//                    category = snapshot.data['category'];
-//                  });
-                  return Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          height: 20,
-                        ),
-                        getImageWidget(context, snapshot.data['imgUrl']),
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            'Изменить фото',
-                            style: TextStyle(color: Colors.black),
+                  if (snapshot.hasData) {
+                    return Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            height: 20,
                           ),
-                        ),
-                        TextFormField(
-                          initialValue: snapshot.data['name'],
-                          textInputAction: TextInputAction.next,
-                          onEditingComplete: _nameEditingComplete,
-                          onSaved: (val) {
-                            name = val;
-                          },
-                          decoration: InputDecoration(
-                            labelText: 'ФИО',
+                          getImageWidget(context, snapshot.data['imgUrl']),
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              'Изменить фото',
+                              style: TextStyle(color: Colors.black),
+                            ),
                           ),
-                        ),
-                        TextFormField(
-                          initialValue: snapshot.data['aboutShort'],
-                          focusNode: _shortFocusNode,
-                          textInputAction: TextInputAction.next,
-                          onEditingComplete: _longEditingComplete,
-                          onSaved: (val) {
-                            aboutShort = val;
-                          },
-                          decoration:
-                              InputDecoration(labelText: 'Коротко о себе'),
-                        ),
-                        TextFormField(
-                          initialValue: snapshot.data['aboutLong'],
-                          focusNode: _longFocusNode,
-                          keyboardType: TextInputType.multiline,
-                          minLines: 4,
-                          maxLines: 4,
-                          onSaved: (val) {
-                            aboutLong = val;
-                          },
-                          decoration:
-                              InputDecoration(labelText: 'Подробнее о себе'),
-                        ),
-                        SizedBox(
-                          height: 20,
-                        ),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FlatButton.icon(
-                            color: Colors.blue,
-                            onPressed: () async {
-                              getAllCategory();
+                          TextFormField(
+                            initialValue: snapshot.data['name'],
+                            textInputAction: TextInputAction.next,
+                            onEditingComplete: _nameEditingComplete,
+                            onSaved: (val) {
+                              name = val;
+                            },
+                            decoration: InputDecoration(
+                              labelText: 'ФИО',
+                            ),
+                          ),
+                          TextFormField(
+                            initialValue: snapshot.data['aboutShort'],
+                            focusNode: _shortFocusNode,
+                            textInputAction: TextInputAction.next,
+                            onEditingComplete: _longEditingComplete,
+                            onSaved: (val) {
+                              aboutShort = val;
+                            },
+                            decoration:
+                                InputDecoration(labelText: 'Коротко о себе'),
+                          ),
+                          TextFormField(
+                            initialValue: snapshot.data['aboutLong'],
+                            focusNode: _longFocusNode,
+                            keyboardType: TextInputType.multiline,
+                            minLines: 4,
+                            maxLines: 4,
+                            onSaved: (val) {
+                              aboutLong = val;
+                            },
+                            decoration:
+                                InputDecoration(labelText: 'Подробнее о себе'),
+                          ),
+                          SizedBox(
+                            height: 20,
+                          ),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FlatButton.icon(
+                              color: Colors.blue,
+                              onPressed: () async {
+                                getAllCategory();
 //                              getMasterCategory();
-                              await Navigator.push(
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => MasterCategoryEdit(
+                                      listFromFB: allCategories
+                                          .where((element) => element != '1все')
+                                          .toList(),
+                                      masterUid: userId,
+                                    ),
+                                  ),
+                                );
+                              },
+                              icon: Icon(
+                                Icons.category,
+                                color: Colors.white,
+                              ),
+                              label: Text(
+                                'Специализация',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                            ),
+                          ),
+                          FlatButton.icon(
+                            onPressed: () async {
+                              masterPoint = await Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => MasterCategoryEdit(
-                                    listFromFB: allCategories,
-
-                                  ),
+                                  builder: (context) => AddMarker(),
                                 ),
                               );
                             },
-                            icon: Icon(
-                              Icons.category,
-                              color: Colors.white,
-                            ),
-                            label: Text(
-                              'Специализация',
-                              style: TextStyle(color: Colors.white),
-                            ),
+                            icon: Icon(Icons.location_on),
+                            label: Text('Ваше местоположение'),
                           ),
-                        ),
-                        FlatButton.icon(
-                          onPressed: () async {
-                            masterPoint = await Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => AddMarker(),
-                              ),
-                            );
-                          },
-                          icon: Icon(Icons.location_on),
-                          label: Text('Ваше местоположение'),
-                        ),
-                        SizedBox(
-                          height: 20,
-                        ),
-                        RaisedButton(
-                          onPressed: () {
-                            if (loadingNewImage) {
-                              return null;
-                            } else {
-                              editProfile(snapshot.data['imgUrl']);
-                            }
-                          },
-                          child: !isLoading
-                              ? Text('Применить')
-                              : SizedBox(
-                                  height: 15,
-                                  width: 15,
-                                  child: CircularProgressIndicator(),
-                                ),
-                        ),
-                      ],
-                    ),
-                  );
+                          SizedBox(
+                            height: 20,
+                          ),
+                          RaisedButton(
+                            onPressed: () {
+                              if (loadingNewImage) {
+                                return null;
+                              } else {
+                                editProfile(snapshot.data['imgUrl']);
+                              }
+                            },
+                            child: !isLoading
+                                ? Text('Применить')
+                                : SizedBox(
+                                    height: 15,
+                                    width: 15,
+                                    child: CircularProgressIndicator(),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return Center(child: LinearProgressIndicator());
                 },
               ),
               (_inProcess)

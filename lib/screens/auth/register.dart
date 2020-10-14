@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_dialogs/flutter_dialogs.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:ordersystem/common/platform_exaption_alert_dialog.dart';
 import 'package:ordersystem/common/size_config.dart';
@@ -27,6 +28,8 @@ class Registration extends StatefulWidget {
 
 class _RegistrationState extends State<Registration> {
   final _firebaseAuth = FirebaseAuth.instance;
+  final saveToken = GetStorage();
+  final userType = GetStorage();
 
   Future registerEmailAndPassword({
     String email,
@@ -41,7 +44,7 @@ class _RegistrationState extends State<Registration> {
 
     //Создаем нового юзера в firebase
     Firestore.instance.collection('masters').document(user.uid).setData({
-      'token': context.read<DataProvider>().token,
+      'token': saveToken.read('token'),
       'email': email,
       'name': name,
       'createDate': Timestamp.now(),
@@ -50,6 +53,8 @@ class _RegistrationState extends State<Registration> {
       'imgUrl': imgUrl,
       'fromWeb': false,
       'blocked': false,
+    }).whenComplete(() => userType.write('userType', 'user')).catchError((e){
+      print(e);
     });
 
     FirebaseUser userName = await FirebaseAuth.instance.currentUser();
@@ -110,9 +115,8 @@ class _RegistrationState extends State<Registration> {
           email: _email.trim(),
           password: _password.trim(),
           name: _name.trim(),
-          imgUrl: imgUrl ?? emptyUrl,
+          imgUrl: imgUrl == null ? emptyUrl : imgUrl,
         ).then((value) {
-
           // addUIDSF(value.currentUser());
           print('!!!$tokenn');
 
@@ -135,13 +139,10 @@ class _RegistrationState extends State<Registration> {
           email: _email.trim(),
           password: _password.trim(),
           name: _name.trim(),
-          imgUrl: imgUrl ?? emptyUrl,
-        ).then((value) {
-          // addUIDSF(value.currentUser());
-        }).then(
-
-              (_) => Navigator.popUntil(context, (route) => route.isFirst),
-            );
+          imgUrl: imgUrl == null ? emptyUrl : imgUrl,
+        ).then(
+          (_) => Navigator.popUntil(context, (route) => route.isFirst),
+        );
       } on PlatformException catch (e) {
         PlatformExceptionAlertDialog(
           title: 'Ошибка',
@@ -300,13 +301,19 @@ class _RegistrationState extends State<Registration> {
       final image = await picker.getImage(source: source);
       if (image != null) {
         File cropped = await ImageCropper.cropImage(
-          sourcePath: image.path,
-          aspectRatio: CropAspectRatio(ratioX: 1, ratioY: 1),
-          compressQuality: 100,
-          maxWidth: 150,
-          maxHeight: 150,
-          compressFormat: ImageCompressFormat.jpg,
-        );
+            sourcePath: image.path,
+            aspectRatio: CropAspectRatio(ratioX: 1, ratioY: 1),
+            compressQuality: 100,
+            maxWidth: 150,
+            maxHeight: 150,
+            compressFormat: ImageCompressFormat.jpg,
+            androidUiSettings: AndroidUiSettings(
+                toolbarTitle: 'Редактор',
+                toolbarWidgetColor: Colors.blue,
+                hideBottomControls: true),
+            iosUiSettings: IOSUiSettings(
+              title: 'Редактор',
+            ));
 
         this.setState(() {
           _selectedFile = cropped;
@@ -319,21 +326,7 @@ class _RegistrationState extends State<Registration> {
         });
       }
     } catch (e) {
-      showPlatformDialog(
-        context: context,
-        builder: (_) => BasicDialogAlert(
-          title: Text("Ошибка"),
-          content: Text("Повторите позже"),
-          actions: <Widget>[
-            BasicDialogAction(
-              title: Text("Ok"),
-              onPressed: () {
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      );
+      print(e);
     }
   }
 
@@ -352,21 +345,7 @@ class _RegistrationState extends State<Registration> {
         imgUrl = url;
       });
     } catch (e) {
-      showPlatformDialog(
-        context: context,
-        builder: (_) => BasicDialogAlert(
-          title: Text("Ошибка"),
-          content: Text("Повторите позже"),
-          actions: <Widget>[
-            BasicDialogAction(
-              title: Text("Ok"),
-              onPressed: () {
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
-      );
+      print(e);
     }
   }
 
@@ -377,7 +356,7 @@ class _RegistrationState extends State<Registration> {
     SizeConfig().init(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text('Регистрация заказчика'),
+        title: Text('Регистрация заказчика',style: TextStyle(fontSize: 16),),
         centerTitle: true,
       ),
 //        resizeToAvoidBottomInset: false,

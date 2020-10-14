@@ -1,7 +1,9 @@
+import 'package:basic_utils/basic_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:ordersystem/common/platform_alert_dialog.dart';
 import 'package:ordersystem/provider/provider.dart';
 import 'package:ordersystem/widgets/master_modal_window.dart';
 import 'package:provider/provider.dart';
@@ -17,19 +19,24 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   String _chosenValue;
   List _chosenValueArr = [];
-  List _chosenValueArrALL = ['все'];
+  List _chosenValueArrALL = ['1все'];
 
   Set<Marker> masters = {};
   String masterName;
   LatLng startLocation;
-  LatLng locTest = LatLng(45.048656, 38.952362);
+  LatLng startLocationError = LatLng(55.749711, 37.616806);
+  final box = GetStorage();
+  
 
   Future<LatLng> getLocation() async {
     Position position =
         await getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-    print(position);
+    print('234$position');
     // startLocation = LatLng(position.latitude, position.longitude);
     LatLng _startTarget = LatLng(position.latitude, position.longitude);
+
+    startLocation = _startTarget;
+
     return _startTarget;
   }
 
@@ -38,53 +45,10 @@ class _MapScreenState extends State<MapScreen> {
     LocationPermission permission = await requestPermission();
   }
 
-  // void showMarkers1() async {
-  //   masters = {};
-  //   final markersFromFirebase = await Firestore.instance
-  //       .collection('masters')
-  //       .getDocuments()
-  //       .catchError(
-  //         (error) => print(error),
-  //       );
-  //   if (markersFromFirebase.documents.isNotEmpty) {
-  //     try {
-  //       for (var n in markersFromFirebase.documents) {
-  //         setState(() {
-  //           masters.add(
-  //             Marker(
-  //               markerId: MarkerId(n.documentID),
-  //               infoWindow: InfoWindow(title: '${n.data['name']}'),
-  //               position: LatLng(
-  //                   n.data['geoPoint'].latitude, n.data['geoPoint'].longitude),
-  //               icon: BitmapDescriptor.defaultMarkerWithHue(
-  //                   BitmapDescriptor.hueGreen),
-  //               onTap: () {
-  //                 showBottomSheet(
-  //                     context: context,
-  //                     builder: (context) => Container(
-  //                           // height: MediaQuery.of(context).size.height * 0.70,
-  //                           color: Colors.red,
-  //                         ));
-  //                 // setState(() {
-  //                 //   masterName = n.data['name'];
-  //                 // });
-  //               },
-  //             ),
-  //           );
-  //         });
-  //       }
-  //     } catch (e) {
-  //       print(
-  //         e.toString(),
-  //       );
-  //     }
-  //   }
-  // }
-
-
   List<String> catsSelector = [];
+  List<String> catsSelector2 = [];
+  List<String> catsSelector3 = [];
   final saveBoxCat = GetStorage();
-
 
   getCategory() async {
     try {
@@ -93,16 +57,65 @@ class _MapScreenState extends State<MapScreen> {
           .document('BY7oiRIc6uq14MwsJ9yV')
           .get();
       List<String> cats = catsFurure.data['cats'].cast<String>();
+
       setState(() {
-        catsSelector = cats;
+        catsSelector = cats..sort((String a, String b) => a.compareTo(b));
       });
       saveBoxCat.write('cats', catsSelector);
-
-
-    }catch(e){
+    } catch (e) {
       print(e);
       catsSelector = saveBoxCat.read('cats');
     }
+  }
+
+  getMarkers() async {
+
+    final snapshot = await Firestore.instance
+        .collection('masters')
+        .where('category',
+            arrayContainsAny: _chosenValueArr == null || _chosenValueArr.isEmpty
+                ? _chosenValueArrALL
+                : _chosenValueArr)
+        .getDocuments();
+    masters.clear();
+
+    setState(() {});
+
+    for (var n
+        in snapshot.documents.where((element) => element['blocked'] == false)) {
+      print(snapshot.documents.length);
+      // masters.clear();
+      masters.add(
+        Marker(
+          markerId: MarkerId(n.documentID),
+          infoWindow: InfoWindow(title: '${n.data['name']}'),
+          position:
+              LatLng(n.data['geoPoint'].latitude, n.data['geoPoint'].longitude),
+          icon:
+              BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+          onTap: () {
+            showModalBottomSheet(
+              isScrollControlled: true,
+              context: context,
+              builder: (context) => Wrap(children: [
+                Container(
+                  height: MediaQuery.of(context).size.height,
+                  child: SingleChildScrollView(
+                    child: ModalMasterProfile(
+                      masterId: n.data['userId'],
+                      phoneNumber: n.data['phoneNumber'],
+                      masterNameFromFb: n.data['name'],
+                      masterCategoryFromFb: n.data['category'].cast<String>(),
+                    ),
+                  ),
+                ),
+              ]),
+            );
+          },
+        ),
+      );
+    }
+
   }
 
   @override
@@ -110,13 +123,24 @@ class _MapScreenState extends State<MapScreen> {
     // TODO: implement initState
     super.initState();
     // showMarkers1();
-    getLocation();
+    getLocation().catchError((e) {
+      return PlatformAlertDialog(
+        title: 'Внимание',
+        content: 'Не удалось получить координаты',
+        defaultActionText: 'Ok',
+      ).show(context);
+    });
     getIosPermission();
     getCategory();
+    getMarkers();
   }
 
   @override
   Widget build(BuildContext context) {
+    if(masters.isEmpty && startLocation != null){
+      getMarkers();
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Padding(
@@ -141,7 +165,7 @@ class _MapScreenState extends State<MapScreen> {
                 return DropdownMenuItem<String>(
                   value: value,
                   child: Text(
-                    value,
+                    StringUtils.capitalize(value).replaceAll("1", ''),
                     style: TextStyle(color: Colors.white, fontSize: 15),
                   ),
                 );
@@ -151,95 +175,30 @@ class _MapScreenState extends State<MapScreen> {
                   _chosenValue = value;
                   _chosenValueArr.clear();
                   _chosenValueArr.add(_chosenValue);
-
-                  print('1111$_chosenValueArr');
                 });
+                getMarkers();
               },
             ),
           ),
         ),
       ),
-      body: StreamBuilder(
-        stream: Firestore.instance
-            .collection('masters')
-            .where('category',
-                arrayContainsAny:
-                    _chosenValueArr == null || _chosenValueArr.isEmpty
-                        ? _chosenValueArrALL
-                        : _chosenValueArr)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting)
-            return Center(child: CircularProgressIndicator());
-          if (snapshot.connectionState == ConnectionState.done)
-            context.watch<DataProvider>().getUserPosition(startLocation);
-          print(snapshot.data.documents.length);
-          masters.clear();
-
-          for (var n in snapshot.data.documents
-              .where((element) => element['blocked'] == false)) {
-            print(snapshot.data.documents.length);
-            // masters.clear();
-            masters.add(
-              Marker(
-                markerId: MarkerId(n.documentID),
-                infoWindow: InfoWindow(title: '${n.data['name']}'),
-                position: LatLng(
-                    n.data['geoPoint'].latitude, n.data['geoPoint'].longitude),
-                icon: BitmapDescriptor.defaultMarkerWithHue(
-                    BitmapDescriptor.hueGreen),
-                onTap: () {
-                  showModalBottomSheet(
-                    isScrollControlled: true,
-                    context: context,
-                    builder: (context) => Wrap(children: [
-                      Container(
-                        height: MediaQuery.of(context).size.height,
-                        child: SingleChildScrollView(
-                          child: ModalMasterProfile(
-                            masterId: n.data['userId'],
-                            phoneNumber: n.data['phoneNumber'],
-                            masterNameFromFb: n.data['name'],
-                          ),
-                        ),
-                      ),
-                    ]),
-                  );
-                  // showBottomSheet(
-                  //   context: context,
-                  //   builder: (context) => Container(
-                  //     height: MediaQuery.of(context).size.height,
-                  //     child: ModalMasterProfile(
-                  //       masterId: n.data['userId'],
-                  //     ),
-                  //   ),
-                  //
-                  // );
-                },
-              ),
-            );
-          }
-
-          return FutureBuilder(
-              future: getLocation(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting)
-                  return Center(child: CircularProgressIndicator());
-                if (snapshot.connectionState == ConnectionState.done)
-                  context.watch<DataProvider>().getUserPosition(snapshot.data);
-                return GoogleMap(
-                  markers: masters,
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
-                  initialCameraPosition:
-                      CameraPosition(target: snapshot.data, zoom: 12),
-                  mapType: MapType.normal,
-                );
-                return Center(child: Container());
-              });
-          return Center(child: Container());
-        },
-      ),
+      body: FutureBuilder(
+          future: getLocation().timeout(const Duration (seconds:10),onTimeout : getLocation),
+          builder: (context, snapshot) {
+            if (snapshot.hasData && snapshot.data != null) {
+              context.watch<DataProvider>().getUserPosition(snapshot.data);
+              return GoogleMap(
+                markers: masters,
+                myLocationEnabled: true,
+                myLocationButtonEnabled: true,
+                initialCameraPosition: CameraPosition(
+                    target: snapshot.data ?? startLocationError, zoom: 12),
+                mapType: MapType.normal,
+              );
+            } else {
+              return Center(child: CircularProgressIndicator());
+            }
+          }),
     );
   }
 }
