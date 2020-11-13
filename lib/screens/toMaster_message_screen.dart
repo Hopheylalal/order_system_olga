@@ -1,7 +1,13 @@
+import 'dart:io';
+import 'dart:math';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:ordersystem/common/utils.dart';
 import 'package:ordersystem/provider/provider.dart';
 import 'package:ordersystem/services/auth_service.dart';
 import 'package:ordersystem/widgets/msg_widget.dart';
@@ -10,9 +16,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_connectivity/simple_connectivity.dart';
 import 'package:toast/toast.dart';
 import 'package:get_storage/get_storage.dart';
-
+import 'package:path/path.dart' as Path;
 import 'blocked_screen.dart';
 import 'common_master_profile.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as Im;
 
 class ToMasterMessageScreen extends StatefulWidget {
   final String from;
@@ -33,6 +41,9 @@ class _ToMasterMessageScreenState extends State<ToMasterMessageScreen> {
   final saveBox = GetStorage();
   String avatar;
   var userType;
+
+  bool imgDwnld = false;
+  bool imgDwnldComplite = false;
 
   String currentUserTo;
   var connectivityResult;
@@ -122,6 +133,54 @@ class _ToMasterMessageScreenState extends State<ToMasterMessageScreen> {
     }
   }
 
+  String imgUrl;
+  String imgKeyUrl;
+
+  pickImage(ImageSource source) async {
+    setState(() {
+      imgDwnld = true;
+    });
+    File selectedImage = await ImagePicker.pickImage(source: source).catchError((err){
+      setState(() {
+        imgDwnld = false;
+      });
+    });
+    final tempDir = await getTemporaryDirectory();
+    final path = tempDir.path;
+    int random = Random().nextInt(1000);
+    Im.Image image = Im.decodeImage(selectedImage.readAsBytesSync());
+    Im.copyResize(image, width: 500, height: 500);
+    File('$path/img_$random.jpg')
+      ..writeAsBytesSync(Im.encodeJpg(image, quality: 85));
+    final StorageReference _ref = FirebaseStorage.instance
+        .ref()
+        .child('${widget.chatId}/${Path.basename(selectedImage.path)}}');
+    imgKeyUrl = Path.basename(selectedImage.path);
+    final StorageUploadTask uploadTask = _ref.putFile(selectedImage);
+    await uploadTask.onComplete.whenComplete(() {
+      _ref.getDownloadURL().then((value) {
+        imgUrl = value.toString();
+        print(imgUrl);
+        print(imgKeyUrl);
+      });
+    }).whenComplete(() {
+      setState(() {
+        textEditingController.text = 'Файл загружен';
+        imgDwnldComplite = true;
+      });
+    });
+  }
+
+  // Future<File> compressImage(File imageToCompress) async {
+  //   final tempDir = await getTemporaryDirectory();
+  //   final path = tempDir.path;
+  //   int random = Random().nextInt(1000);
+  //   Im.Image image = Im.decodeImage(imageToCompress.readAsBytesSync());
+  //   Im.copyResize(image, width: 500, height: 500);
+  //   return File('$path/img_$random.jpg')
+  //     ..writeAsBytesSync(Im.encodeJpg(image, quality: 85));
+  // }
+
   @override
   Widget build(BuildContext context) {
     print(saveBox.read('userName'));
@@ -131,7 +190,6 @@ class _ToMasterMessageScreenState extends State<ToMasterMessageScreen> {
     return Scaffold(
       backgroundColor: Color(0xFFE9E9E9),
       resizeToAvoidBottomInset: true,
-
       appBar: AppBar(
         title: Text(
           userName ?? saveBox.read('userName') ?? '',
@@ -143,7 +201,7 @@ class _ToMasterMessageScreenState extends State<ToMasterMessageScreen> {
               size: 40,
               color: Colors.white,
             ),
-            onPressed: () async{
+            onPressed: () async {
               // context.read<DataProvider>().newMessage = 0;
 
               delNewMsg(user.uid);
@@ -236,10 +294,32 @@ class _ToMasterMessageScreenState extends State<ToMasterMessageScreen> {
               height: 80,
               child: Row(
                 children: [
+                  imgDwnld == false
+                      ? Padding(
+                        padding: const EdgeInsets.only(left: 10),
+                        child: IconButton(
+                            icon: Icon(Icons.image),
+                            onPressed: () {
+                              pickImage(ImageSource.gallery);
+                            }),
+                      )
+                      : imgDwnldComplite == false ? Padding(
+                        padding: const EdgeInsets.only(left: 10),
+                        child: SizedBox(
+                            width: 10,
+                            height: 10,
+                            child: CircularProgressIndicator(),
+                          ),
+                      ) : Padding(
+                        padding: const EdgeInsets.only(left: 10),
+                        child: Icon(Icons.check,color: Colors.green,),
+                      ),
+
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 20, left: 15),
                       child: TextFormField(
+
                         textCapitalization: TextCapitalization.sentences,
                         enableSuggestions: true,
                         keyboardType: TextInputType.multiline,
@@ -249,7 +329,6 @@ class _ToMasterMessageScreenState extends State<ToMasterMessageScreen> {
                       ),
                     ),
                   ),
-
                   FutureBuilder(
                       future: Firestore.instance
                           .collection('messages')
@@ -302,20 +381,32 @@ class _ToMasterMessageScreenState extends State<ToMasterMessageScreen> {
                                               .document('${widget.chatId}')
                                               .collection('chat')
                                               .add({
-                                            'nameAdmin': name.data['name'],
-                                            'sender': user.uid,
-                                            'createDate':
-                                                FieldValue.serverTimestamp(),
-                                            'to': user.uid == widget.to
-                                                ? widget.from
-                                                : widget.to,
-                                            'content':
-                                                textEditingController.text,
-                                            'new': true,
-                                            widget.to: true,
-                                            widget.from: true,
-                                            'chatId': widget.chatId
-                                          });
+                                                'nameAdmin': name.data['name'],
+                                                'sender': user.uid,
+                                                'createDate': FieldValue
+                                                    .serverTimestamp(),
+                                                'to': user.uid == widget.to
+                                                    ? widget.from
+                                                    : widget.to,
+                                                'content':
+                                                    textEditingController.text == 'Файл загружен' ? imgUrl : textEditingController.text,
+                                                'new': true,
+                                                widget.to: true,
+                                                widget.from: true,
+                                                'chatId': widget.chatId
+                                              })
+                                              .whenComplete(
+                                                  () => delNewMsg(user.uid))
+                                              .whenComplete(() {
+                                            setState(() {
+                                              imgDwnldComplite = false;
+                                              imgDwnld = false;
+                                            });
+                                                context
+                                                    .read<DataProvider>()
+                                                    .getMessagesFromFireStore(
+                                                        user.uid);
+                                              });
                                           textEditingController.clear();
                                         }
 
@@ -337,32 +428,45 @@ class _ToMasterMessageScreenState extends State<ToMasterMessageScreen> {
                                           .collection('messages')
                                           .document('${widget.chatId}')
                                           .updateData({
-                                        'array': FieldValue.arrayUnion(
-                                            addUserUidToArray)
-                                      }).then((_) {
-                                        if (textEditingController
-                                            .text.isNotEmpty) {
-                                          Firestore.instance
-                                              .collection('messages')
-                                              .document('${widget.chatId}')
-                                              .collection('chat')
-                                              .add({
-                                            'nameAdmin': name.data['name'],
-                                            'sender': user.uid,
-                                            'createDate':
-                                                FieldValue.serverTimestamp(),
-                                            'to': user.uid == widget.to
-                                                ? widget.from
-                                                : widget.to,
-                                            'content':
-                                                textEditingController.text,
-                                            'new': true,
-                                            widget.to: true,
-                                            widget.from: true,
+                                            'array': FieldValue.arrayUnion(
+                                                addUserUidToArray)
+                                          })
+                                          .then((_) {
+                                            if (textEditingController
+                                                .text.isNotEmpty) {
+                                              Firestore.instance
+                                                  .collection('messages')
+                                                  .document('${widget.chatId}')
+                                                  .collection('chat')
+                                                  .add({
+                                                'nameAdmin': name.data['name'],
+                                                'sender': user.uid,
+                                                'createDate': FieldValue
+                                                    .serverTimestamp(),
+                                                'to': user.uid == widget.to
+                                                    ? widget.from
+                                                    : widget.to,
+                                                'content':
+                                                    textEditingController.text,
+                                                'new': true,
+                                                widget.to: true,
+                                                widget.from: true,
+                                              });
+                                              textEditingController.clear();
+                                            }
+                                          })
+                                          .whenComplete(
+                                              () => delNewMsg(user.uid))
+                                          .whenComplete(() {
+                                            setState(() {
+                                              imgDwnld = false;
+                                              imgDwnldComplite = false;
+                                            });
+                                            context
+                                                .read<DataProvider>()
+                                                .getMessagesFromFireStore(
+                                                    user.uid);
                                           });
-                                          textEditingController.clear();
-                                        }
-                                      });
                                     }
                                   }
                                 } else {

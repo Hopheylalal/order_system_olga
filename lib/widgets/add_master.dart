@@ -47,6 +47,8 @@ class _AddMasterFormState extends State<AddMasterForm> {
   bool pressLoadButton = false;
   List<Marker> masterPoint;
 
+  int alreadyPress = 0;
+
   final saveCatList = GetStorage();
 
   final _codeController = TextEditingController();
@@ -95,6 +97,10 @@ class _AddMasterFormState extends State<AddMasterForm> {
   }
 
   void trySubmit() {
+    setState(() {
+      alreadyPress++;
+      isLoading = true;
+    });
     if (masterPoint == null || context.read<DataProvider>().checkedCat.length < 1 ) {
       showPlatformDialog(
         context: context,
@@ -105,6 +111,10 @@ class _AddMasterFormState extends State<AddMasterForm> {
             BasicDialogAction(
               title: Text("OK"),
               onPressed: () {
+                setState(() {
+                  isLoading = false;
+                  alreadyPress--;
+                });
                 Navigator.pop(context);
               },
             ),
@@ -112,6 +122,7 @@ class _AddMasterFormState extends State<AddMasterForm> {
         ),
       );
     } else {
+
       FocusScope.of(context).unfocus();
 
       if (_formKey.currentState.validate() &&
@@ -119,19 +130,25 @@ class _AddMasterFormState extends State<AddMasterForm> {
           context.read<DataProvider>().checkedCat.length != 0) {
 //    If all data are correct then save data to out variables
         _formKey.currentState.save();
+        setState(() {
+          isLoading = false;
+        });
 
 
         getMAsterExist();
       } else {
 //    If all data are not valid then start auto validation.
         setState(() {
+          alreadyPress--;
           catCatalogValidate = true;
+          setState(() {
+            isLoading = false;
+          });
 
           print(_selectedFile);
           if (_selectedFile == null) {
             colorText = Colors.red;
           }
-
           _autoValidate = true;
         });
       }
@@ -145,7 +162,9 @@ class _AddMasterFormState extends State<AddMasterForm> {
       final result = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: pass.trim(),
-      );
+      ).whenComplete(() {
+        // Navigator.of(context).pop();
+      });
 
 
 
@@ -188,6 +207,7 @@ class _AddMasterFormState extends State<AddMasterForm> {
           'category': context.read<DataProvider>().checkedCat,
           'blocked': false,
           'token': token,
+          'lastSeen' : Timestamp.now(),
           'geoPoint': GeoPoint(masterPoint.first.position.latitude,
               masterPoint.last.position.longitude)
         }).whenComplete(() {
@@ -196,19 +216,18 @@ class _AddMasterFormState extends State<AddMasterForm> {
             'geoPoint': GeoPoint(masterPoint.first.position.latitude,
                 masterPoint.last.position.longitude)
           });
+          //     .whenComplete(() {
+          //   Firestore.instance.collection('rating').document().setData({
+          //     'masterId': user.uid,
+          //     // 'ownerId': '',
+          //     'rating' : 0.0,
+          //   });
+          // });
           saveStatus.write('userType', 'master');
         }).then((_) {
           EasyLoading.dismiss();
 
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MasterProfile(
-                status: 'reg',
-                userType: null,
-              ),
-            ),
-          );
+          Navigator.of(context).pop();
         }).catchError((err) {
           print(err);
           PlatformAlertDialog(
@@ -895,8 +914,19 @@ class _AddMasterFormState extends State<AddMasterForm> {
                               padding:
                                   const EdgeInsets.only(bottom: 0, top: 10),
                               child: RaisedButton(
-                                onPressed: !isLoading ? trySubmit : null,
-                                child: !isLoading
+                                onPressed: (){
+                                  if(alreadyPress > 0){
+
+                                  }else{
+                                    if(isLoading == false){
+                                      trySubmit();
+                                    }else{
+                                      return null;
+                                    }
+                                  }
+
+                                },
+                                child: isLoading == false
                                     ? Text('Далее')
                                     : SizedBox(
                                         height: 15,

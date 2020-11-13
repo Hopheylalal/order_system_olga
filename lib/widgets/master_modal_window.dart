@@ -6,10 +6,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dialogs/flutter_dialogs.dart';
 import 'package:flutter_phone_direct_caller/flutter_phone_direct_caller.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:ordersystem/screens/toMaster_message_screen.dart';
 import 'package:ordersystem/services/auth_service.dart';
 import 'package:ordersystem/widgets/comment_widget.dart';
 import 'package:provider/provider.dart';
+import 'package:timeago/timeago.dart' as timeago;
 
 import 'add_new_order_form.dart';
 
@@ -35,6 +37,7 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
   String curUsr;
   String content;
   final _formKey = new GlobalKey<FormState>();
+  final _formKey1 = new GlobalKey<FormState>();
   bool loading = false;
   bool buttonEnabled = true;
 
@@ -93,6 +96,105 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
                           // setState(() {});
 
                           Navigator.pop(context);
+                        }
+                      });
+                } else {
+                  return Center(
+                    child: SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(),
+                    ),
+                  );
+                }
+              }),
+          BasicDialogAction(
+            title: Text("Отмена"),
+            onPressed: () {
+              Navigator.pop(context);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  getStarRating() async {
+    final starsDocs = await Firestore.instance
+        .collection('rating')
+        .where('masterId', isEqualTo: widget.masterId)
+        .getDocuments();
+  }
+
+  void addStarDialog(BuildContext contextm, user) {
+    double starRait = 0.0;
+    showPlatformDialog(
+      context: contextm,
+      builder: (contextm) => BasicDialogAlert(
+        title: Text("Добавить рейтинг"),
+        content: Card(
+          color: !Platform.isIOS ? Colors.white : Color(0xffEAEAEA),
+          elevation: 0,
+          child: SizedBox(
+            height: 100,
+            child: Center(
+              child: RatingBar(
+                itemSize: 30,
+                initialRating: 0,
+                minRating: 0,
+                direction: Axis.horizontal,
+                allowHalfRating: true,
+                itemCount: 5,
+                unratedColor: Colors.white24,
+                itemPadding: EdgeInsets.symmetric(horizontal: 4.0),
+                itemBuilder: (context, _) => Icon(
+                  Icons.star,
+                  color: Colors.amber,
+                ),
+                onRatingUpdate: (rating) {
+                  starRait = rating;
+                  print(starRait);
+                },
+              ),
+            ),
+          ),
+        ),
+        actions: <Widget>[
+          FutureBuilder(
+              future: Firestore.instance
+                  .collection('rating')
+                  .where('ownerId', isEqualTo: user)
+                  .where('masterId', isEqualTo: widget.masterId)
+                  .getDocuments(),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return BasicDialogAction(
+                      title: Text("Добавить"),
+                      onPressed: () async {
+                        if (snapshot.data.documents.length == 0) {
+                          Navigator.pop(contextm);
+                          await Firestore.instance
+                              .collection('rating')
+                              .document()
+                              .setData({
+                            'masterId': widget.masterId,
+                            'ownerId': user,
+                            'rating': starRait,
+                          });
+                          Navigator.of(contextm).pop();
+                        } else {
+                          var docIdList = snapshot.data.documents.first;
+                          String docId = docIdList.documentID;
+
+                          await Firestore.instance
+                              .collection('rating')
+                              .document(docId)
+                              .updateData(
+                            {
+                              'rating': starRait,
+                            },
+                          );
+                          Navigator.of(contextm).pop();
                         }
                       });
                 } else {
@@ -216,6 +318,7 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<FirebaseUser>();
+    print(widget.masterId);
 
     return Container(
       child: StreamBuilder(
@@ -245,13 +348,44 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
                               SizedBox(
                                 height: 10,
                               ),
-                              Align(
-                                alignment: Alignment.bottomRight,
-                                child: IconButton(
-                                    icon: Icon(Icons.clear),
-                                    onPressed: () {
-                                      Navigator.pop(context);
-                                    }),
+                              Column(
+                                children: [
+                                  Align(
+                                    alignment: Alignment.bottomRight,
+                                    child: IconButton(
+                                        icon: Icon(Icons.clear),
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                        }),
+                                  ),
+                                  Center(
+                                    child: StreamBuilder(
+                                      stream: Firestore.instance
+                                          .collection('masters')
+                                          .document(widget.masterId)
+                                          .snapshots(),
+                                      builder: (context, snapshot) {
+
+                                        if (snapshot.hasData) {
+                                          return Padding(
+                                            padding: const EdgeInsets.only(
+                                                bottom: 10),
+                                            child: Center(
+                                              child: Text(
+                                                'Заходил: ${timeago.format(snapshot.data['lastSeen'].toDate(), locale: 'fr')}',
+                                                style: TextStyle(
+                                                    fontWeight:
+                                                        FontWeight.bold),
+                                              ),
+                                            ),
+                                          );
+                                        } else {
+                                          return SizedBox();
+                                        }
+                                      },
+                                    ),
+                                  ),
+                                ],
                               ),
                               Center(
                                 child: CircleAvatar(
@@ -277,35 +411,23 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
                                   children: [
                                     FlatButton.icon(
                                       onPressed: () async {
-                                        if (snapshot.data['userId'] ==
-                                            user.uid) {
-                                          showPlatformDialog(
-                                            context: context,
-                                            builder: (_) => BasicDialogAlert(
-                                              title: Text("Внимание"),
-                                              content: Text(
-                                                  "Вы не можете звонить самому себе"),
-                                              actions: <Widget>[
-                                                BasicDialogAction(
-                                                  title: Text("OK"),
-                                                  onPressed: () {
-                                                    Navigator.pop(context);
-                                                  },
-                                                ),
-                                              ],
-                                            ),
-                                          );
-                                        } else {
+
                                           await FlutterPhoneDirectCaller
                                               .callNumber(
                                                   "${widget.phoneNumber}");
-                                        }
+
                                       },
                                       icon: Icon(Icons.call),
-                                      label: Text('Звонок',style: TextStyle(fontSize: 12),),
+                                      label: Text(
+                                        'Звонок',
+                                        style: TextStyle(fontSize: 12),
+                                      ),
                                     ),
                                     FlatButton.icon(
-                                      label: Text('Чат',style: TextStyle(fontSize: 12),),
+                                      label: Text(
+                                        'Чат',
+                                        style: TextStyle(fontSize: 12),
+                                      ),
                                       icon: buttonEnabled == true
                                           ? Icon(Icons.email)
                                           : SizedBox(
@@ -315,14 +437,13 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
                                                   CircularProgressIndicator(),
                                             ),
                                       onPressed: () {
-                                        if (snapshot.data['userId'] ==
-                                            user.uid) {
+                                        if(user == null){
                                           showPlatformDialog(
                                             context: context,
                                             builder: (_) => BasicDialogAlert(
                                               title: Text("Внимание"),
                                               content: Text(
-                                                  "Вы не можете писать самому себе"),
+                                                  "Авторизуйтесь чтобы продолжить"),
                                               actions: <Widget>[
                                                 BasicDialogAction(
                                                   title: Text("OK"),
@@ -333,23 +454,15 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
                                               ],
                                             ),
                                           );
-                                        } else {
-                                          if (user != null) {
-                                            if (buttonEnabled = true) {
-                                              sendMsgButton(user);
-                                              setState(() {
-                                                buttonEnabled = false;
-                                              });
-                                            } else {
-                                              return null;
-                                            }
-                                          } else {
+                                        }else{
+                                          if (snapshot.data['userId'] ==
+                                              user.uid) {
                                             showPlatformDialog(
                                               context: context,
                                               builder: (_) => BasicDialogAlert(
                                                 title: Text("Внимание"),
                                                 content: Text(
-                                                    "Авторизуйтесь чтобы продолжить"),
+                                                    "Вы не можете писать самому себе"),
                                                 actions: <Widget>[
                                                   BasicDialogAction(
                                                     title: Text("OK"),
@@ -360,12 +473,40 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
                                                 ],
                                               ),
                                             );
+                                          } else {
+                                            if (user != null) {
+                                              if (buttonEnabled = true) {
+                                                sendMsgButton(user);
+                                                setState(() {
+                                                  buttonEnabled = false;
+                                                });
+                                              }
+                                            }
                                           }
                                         }
+
                                       },
                                     ),
                                     FlatButton.icon(
                                       onPressed: () async {
+                                        if(user == null){
+                                          showPlatformDialog(
+                                            context: context,
+                                            builder: (_) => BasicDialogAlert(
+                                              title: Text("Внимание"),
+                                              content: Text(
+                                                  "Авторизуйтесь чтобы продолжить"),
+                                              actions: <Widget>[
+                                                BasicDialogAction(
+                                                  title: Text("OK"),
+                                                  onPressed: () {
+                                                    Navigator.pop(context);
+                                                  },
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        }
                                         if (snapshot.data['userId'] ==
                                             user.uid) {
                                           showPlatformDialog(
@@ -373,7 +514,7 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
                                             builder: (_) => BasicDialogAlert(
                                               title: Text("Внимание"),
                                               content: Text(
-                                                  "Вы не можете звонить самому себе"),
+                                                  "Вы не можете дать задание самому себе"),
                                               actions: <Widget>[
                                                 BasicDialogAction(
                                                   title: Text("OK"),
@@ -420,7 +561,10 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
                                         }
                                       },
                                       icon: Icon(Icons.add),
-                                      label: Text('Задание',style: TextStyle(fontSize: 12),),
+                                      label: Text(
+                                        'Задание',
+                                        style: TextStyle(fontSize: 12),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -507,40 +651,159 @@ class _ModalMasterProfileState extends State<ModalMasterProfile> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.only(
-                        top: 10, left: 20, right: 20, bottom: 10),
-                    child: Row(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Отзывы',
-                          style: TextStyle(fontSize: 20),
-                        ),
-                        Spacer(),
-                        IconButton(
-                          icon: Icon(Icons.add_box),
-                          onPressed: () {
-                            if (user != null) {
-                              addCommentDialog(context, user);
-                            } else {
-                              showPlatformDialog(
-                                context: context,
-                                builder: (_) => BasicDialogAlert(
-                                  title: Text("Внимание"),
-                                  content:
-                                      Text("Авторизуйтесь чтобы продолжить"),
-                                  actions: <Widget>[
-                                    BasicDialogAction(
-                                      title: Text("OK"),
-                                      onPressed: () {
-                                        Navigator.pop(context);
-                                      },
+                        Row(
+                          children: [
+                            Text(
+                              'Рейтинг',
+                              style: TextStyle(fontSize: 20),
+                            ),
+                            Spacer(),
+                            IconButton(
+                              icon: Icon(Icons.add_box),
+                              onPressed: () {
+                                if (user != null) {
+                                  if (snapshot.data['userId'] == user.uid) {
+                                    showPlatformDialog(
+                                      context: context,
+                                      builder: (_) => BasicDialogAlert(
+                                        title: Text("Внимание"),
+                                        content: Text(
+                                            "Вы не можете дать рейтинг самому себе"),
+                                        actions: <Widget>[
+                                          BasicDialogAction(
+                                            title: Text("OK"),
+                                            onPressed: () {
+                                              Navigator.pop(context);
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  } else {
+                                    addStarDialog(context, user.uid);
+                                  }
+                                } else {
+                                  showPlatformDialog(
+                                    context: context,
+                                    builder: (_) => BasicDialogAlert(
+                                      title: Text("Внимание"),
+                                      content: Text(
+                                          "Авторизуйтесь чтобы продолжить"),
+                                      actions: <Widget>[
+                                        BasicDialogAction(
+                                          title: Text("OK"),
+                                          onPressed: () {
+                                            Navigator.pop(context);
+                                          },
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                              );
-                            }
-                          },
-                        )
+                                  );
+                                }
+                              },
+                            )
+                          ],
+                        ),
+                        Center(
+                          child: StreamBuilder(
+                            stream: Firestore.instance
+                                .collection('rating')
+                                .where(
+                                  'masterId',
+                                  isEqualTo: widget.masterId,
+                                )
+                                .snapshots(),
+                            builder: (context, snapshot) {
+                              print(snapshot);
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return SizedBox();
+                              }
+                              List err = snapshot.data.documents;
+
+                              if (err.isEmpty) {
+                                return RatingBarIndicator(
+                                  rating: 0,
+                                  itemBuilder: (context, index) => Icon(
+                                    Icons.star,
+                                    color: Colors.amber,
+                                  ),
+                                  itemCount: 5,
+                                  itemSize: 30.0,
+                                  direction: Axis.horizontal,
+                                );
+                              } else if (err.length == 0) {
+                                return CircularProgressIndicator();
+                              } else {
+                                if (snapshot.hasData) {
+                                  List listResult = snapshot.data.documents;
+                                  List starResult = [];
+                                  double sumStarRate = 0.0;
+                                  double starMidRate = 0.0;
+
+                                  listResult.forEach((element) {
+                                    starResult.add(element['rating']);
+                                  });
+
+                                  sumStarRate =
+                                      starResult.reduce((a, b) => a + b);
+
+                                  starMidRate = sumStarRate / listResult.length;
+
+                                  return RatingBarIndicator(
+                                    rating: starMidRate,
+                                    itemBuilder: (context, index) => Icon(
+                                      Icons.star,
+                                      color: Colors.amber,
+                                    ),
+                                    itemCount: 5,
+                                    itemSize: 30.0,
+                                    direction: Axis.horizontal,
+                                  );
+                                } else
+                                  return CircularProgressIndicator();
+                              }
+                            },
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              'Отзывы',
+                              style: TextStyle(fontSize: 20),
+                            ),
+                            Spacer(),
+                            IconButton(
+                              icon: Icon(Icons.add_box),
+                              onPressed: () {
+                                if (user != null) {
+                                  addCommentDialog(context, user);
+                                } else {
+                                  showPlatformDialog(
+                                    context: context,
+                                    builder: (_) => BasicDialogAlert(
+                                      title: Text("Внимание"),
+                                      content: Text(
+                                          "Авторизуйтесь чтобы продолжить"),
+                                      actions: <Widget>[
+                                        BasicDialogAction(
+                                          title: Text("OK"),
+                                          onPressed: () {
+                                            Navigator.pop(context);
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }
+                              },
+                            )
+                          ],
+                        ),
                       ],
                     ),
                   ),

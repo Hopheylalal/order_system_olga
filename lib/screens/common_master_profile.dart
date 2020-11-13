@@ -6,12 +6,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dialogs/flutter_dialogs.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:ordersystem/screens/edit_master_profile.dart';
 import 'package:ordersystem/services/auth_service.dart';
 import 'package:ordersystem/widgets/comment_widget.dart';
 import 'package:provider/provider.dart';
 import 'package:load/load.dart';
-
 
 import 'blocked_screen.dart';
 
@@ -101,7 +101,6 @@ class _CommonMasterProfileState extends State<CommonMasterProfile> {
                   return BasicDialogAction(
                       title: Text("Добавить"),
                       onPressed: () async {
-
                         if (_formKey.currentState.validate()) {
                           showLoadingDialog();
 
@@ -121,7 +120,6 @@ class _CommonMasterProfileState extends State<CommonMasterProfile> {
                           });
 
                           // setState(() {});
-
 
                         }
                       });
@@ -321,26 +319,103 @@ class _CommonMasterProfileState extends State<CommonMasterProfile> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: snapshot.data['category']
-                                            .where((element) => element != '1все')
-                                            .map<Widget>((val) => Padding(
-                                                  padding: const EdgeInsets
-                                                      .symmetric(vertical: 5),
-                                                  child: Text(
-                                                      '${StringUtils.capitalize(
-                                                        val.toString(),
-                                                      )}',
-                                                    style: TextStyle(
-                                                        fontSize: 18,
-                                                        fontWeight:
-                                                            FontWeight.w600),
-                                                  ),
-                                                ))
+                                            .where(
+                                                (element) => element != '1все')
+                                            .map<Widget>(
+                                              (val) => Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        vertical: 5),
+                                                child: Text(
+                                                  '${StringUtils.capitalize(
+                                                    val.toString(),
+                                                  )}',
+                                                  style: TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.w600),
+                                                ),
+                                              ),
+                                            )
                                             .toList(),
                                       ),
                                     ),
                                     SizedBox(
                                       height: 10,
                                     ),
+                                    Row(
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.only(bottom: 10),
+                                          child: Text(
+                                            'Рейтинг',
+                                            style: TextStyle(fontSize: 20),
+                                          ),
+                                        ),
+                                        Spacer(),
+                                        Padding(
+                                          padding: const EdgeInsets.only(right: 10,bottom: 10),
+                                          child: StreamBuilder(
+                                            stream: Firestore.instance
+                                                .collection('rating')
+                                                .where('masterId', isEqualTo: widget.masterId)
+                                                .snapshots(),
+                                            builder: (context, snapshot) {
+                                              if (snapshot.connectionState ==
+                                                  ConnectionState.waiting) {
+                                                return SizedBox();
+                                              }
+
+                                              List err = snapshot.data.documents;
+
+                                              if(err.isEmpty){
+                                                return RatingBarIndicator(
+                                                  rating: 0,
+                                                  itemBuilder: (context, index) => Icon(
+                                                    Icons.star,
+                                                    color: Colors.amber,
+                                                  ),
+                                                  itemCount: 5,
+                                                  itemSize: 30.0,
+                                                  direction: Axis.horizontal,
+                                                );
+                                              }
+                                              if (snapshot.hasData) {
+                                                List listResult = snapshot.data.documents;
+                                                List starResult = [];
+                                                double sumStarRate = 0.0;
+                                                double starMidRate = 0.0;
+
+                                                listResult.forEach((element) {
+                                                  starResult.add(element['rating']);
+                                                });
+
+                                                sumStarRate = starResult.reduce((a, b) => a + b);
+
+                                                starMidRate = sumStarRate / listResult.length;
+
+                                                return
+                                                  RatingBarIndicator(
+                                                  rating: starMidRate,
+                                                  itemBuilder: (context, index) => Icon(
+                                                    Icons.star,
+                                                    color: Colors.amber,
+                                                  ),
+                                                  itemCount: 5,
+                                                  itemSize: 30.0,
+                                                  direction: Axis.horizontal,
+                                                );
+                                              }
+
+                                              else
+                                                return CircularProgressIndicator();
+                                            },
+                                          ),
+                                        ),
+
+                                      ],
+                                    ),
+
                                   ],
                                 ),
                               ),

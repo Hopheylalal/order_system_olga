@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -53,7 +54,20 @@ class MsgWidget extends StatelessWidget {
                   SizedBox(
                     height: 5,
                   ),
+                  message.toString().length > 4  ?
+                  message.toString().substring(0,4) == 'http' ?
+                      Container(
+
+                        child: CachedNetworkImage(
+                          imageUrl: "$message",
+                          placeholder: (context, url) => CircularProgressIndicator(),
+                          errorWidget: (context, url, error) => Icon(Icons.error),
+                        ),
+                      ) :
                   Text(
+                    '$message',
+                    style: TextStyle(fontSize: 18),
+                  ) : Text(
                     '$message',
                     style: TextStyle(fontSize: 18),
                   )

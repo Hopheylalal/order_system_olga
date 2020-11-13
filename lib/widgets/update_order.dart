@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dropdown_formfield/dropdown_formfield.dart';
 import 'package:flutter/material.dart';
@@ -8,9 +9,10 @@ import 'package:ordersystem/services/auth_service.dart';
 class UpdateOrder extends StatefulWidget {
   final orderId;
 
-
-  const UpdateOrder({Key key, this.orderId, })
-      : super(key: key);
+  const UpdateOrder({
+    Key key,
+    this.orderId,
+  }) : super(key: key);
 
   @override
   _UpdateOrderState createState() => _UpdateOrderState();
@@ -168,7 +170,6 @@ class _UpdateOrderState extends State<UpdateOrder> {
                           SizedBox(
                             height: 20,
                           ),
-
                           TextFormField(
                             enableSuggestions: true,
                             textCapitalization: TextCapitalization.sentences,
@@ -202,8 +203,91 @@ class _UpdateOrderState extends State<UpdateOrder> {
                           SizedBox(
                             height: 20,
                           ),
+                          FutureBuilder(
+                            future: Firestore.instance
+                                .collection('orders')
+                                .document(widget.orderId.toString())
+                                .get(),
+                            builder: (context, snap) {
+                              if (snap.hasData) {
+                                List<String> imgUrl =
+                                snap.data['imgUrl'].cast<String>();
+                                return Column(
+                                  children: [
+                                    if(imgUrl.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Text(
+                                        'Фото объекта',
+                                        style: TextStyle(fontSize: 20),
+                                      ),
+                                    ),
+                                    Center(
+                                      child: Wrap(
+                                        children: imgUrl.map<Widget>((pic) {
+                                          String img = pic;
+                                          List phList = [];
+                                          phList.add(pic);
+                                          return Stack(
+                                            children: [
+                                              Padding(
+                                                padding:
+                                                const EdgeInsets.all(8.0),
+                                                child: SizedBox(
+                                                  height: 140,
+                                                  width: 140,
+                                                  child: GestureDetector(
+                                                    onTap: () {},
+                                                    child: CachedNetworkImage(
+                                                      imageUrl: pic,
+                                                      progressIndicatorBuilder: (context,
+                                                          url,
+                                                          downloadProgress) =>
+                                                          CircularProgressIndicator(
+                                                              value:
+                                                              downloadProgress
+                                                                  .progress),
+                                                      errorWidget: (context,
+                                                          url, error) =>
+                                                          Icon(Icons
+                                                              .image_not_supported_sharp),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              IconButton(
+                                                  icon: Icon(
+                                                    Icons.delete,
+                                                    color: Colors.red,
+                                                  ),
+                                                  onPressed: () {
+                                                    Firestore.instance
+                                                        .collection('orders')
+                                                        .document(
+                                                      widget.orderId
+                                                          .toString(),
+                                                    ).updateData({
+                                                      'imgUrl' : FieldValue.arrayRemove(phList)
+                                                    }).whenComplete(() {
+                                                      setState(() {
+
+                                                      });
+                                                    });
+                                                  })
+                                            ],
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              } else {
+                                return SizedBox();
+                              }
+                            },
+                          ),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 10,vertical: 20),
                             child: ButtonTheme(
                               minWidth: double.maxFinite,
                               height: 45.0,
@@ -241,6 +325,7 @@ class _UpdateOrderState extends State<UpdateOrder> {
                               ),
                             ),
                           ),
+
                         ],
                       ),
                     );

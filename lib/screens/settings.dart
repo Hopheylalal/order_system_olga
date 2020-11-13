@@ -7,42 +7,34 @@ import 'package:ordersystem/widgets/add_master.dart';
 import 'package:ordersystem/widgets/auth_master_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-
 import 'all_chat_screen.dart';
 import 'master_profile.dart';
 
 class Settings extends StatefulWidget {
-
-
-
   @override
   _SettingsState createState() => _SettingsState();
 }
 
 class _SettingsState extends State<Settings> {
-
   getStringValuesSF() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     //Return String
     String stringValue = prefs.getString('stringValue');
     return stringValue;
   }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<FirebaseUser>();
 
-
     return Scaffold(
-
       appBar: AppBar(
-
         centerTitle: true,
         title: Text('Ваш профиль'),
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
-
             SizedBox(
               height: 10,
             ),
@@ -63,9 +55,9 @@ class _SettingsState extends State<Settings> {
                 },
               ),
             if (user == null)
-            Divider(
-              color: Colors.black,
-            ),
+              Divider(
+                color: Colors.black,
+              ),
             if (user != null)
               ListTile(
                 title: Text(
@@ -149,7 +141,6 @@ class _SettingsState extends State<Settings> {
 //            Divider(
 //              color: Colors.black,
 //            ),
-
           ],
         ),
       ),

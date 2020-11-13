@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -9,10 +11,12 @@ import 'package:ordersystem/screens/blocked_screen.dart';
 import 'package:ordersystem/screens/common_master_profile.dart';
 import 'package:ordersystem/screens/toMaster_message_screen.dart';
 import 'package:ordersystem/services/auth_service.dart';
+import 'package:ordersystem/widgets/image_viewer.dart';
 import 'package:ordersystem/widgets/update_order.dart';
 import 'package:provider/provider.dart';
 import 'package:simple_connectivity/simple_connectivity.dart';
 import 'package:toast/toast.dart';
+import 'package:intl/intl.dart';
 
 class OrderScreen extends StatefulWidget {
   final orderScreenCreateDate;
@@ -67,7 +71,6 @@ class _OrderScreenState extends State<OrderScreen> {
         Timer(Duration(seconds: 4), () {
           setState(() {
             buttonEnabled = true;
-
           });
         });
       });
@@ -156,6 +159,8 @@ class _OrderScreenState extends State<OrderScreen> {
   void getConnection() async {
     connectivityResult = await (Connectivity().checkConnectivity());
   }
+
+  List _imageList = [];
 
   @override
   void initState() {
@@ -332,9 +337,14 @@ class _OrderScreenState extends State<OrderScreen> {
                       'Имя заказчика',
                       style: TextStyle(fontSize: 20),
                     ),
+
                     Text(
                       '${widget.orderScreenOwnerName}',
                       style: TextStyle(fontSize: 16),
+                    ),
+                    Divider(
+                      color: Colors.grey,
+                      thickness: 0.6,
                     ),
 
                     if (widget.masterUid != user.uid)
@@ -388,6 +398,90 @@ class _OrderScreenState extends State<OrderScreen> {
                       '${updaterChecker == true ? snapshot.data['description'] : widget.orderScreenDescription}',
                       style: TextStyle(fontSize: 16),
                     ),
+                    Divider(
+                      color: Colors.grey,
+                      thickness: 0.6,
+                    ),
+                    Text(
+                      'Дата начала',
+                      style: TextStyle(fontSize: 20),
+                    ),
+
+                    Text(
+                      '${snapshot.data['startDate'] == 'null' ? 'Не задано' : DateFormat('yyyy-MM-dd').format(snapshot.data['startDate'].toDate())}',
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    Divider(
+                      color: Colors.grey,
+                      thickness: 0.6,
+                    ),
+                    FutureBuilder(
+                      future: Firestore.instance
+                          .collection('orders')
+                          .document(widget.orderScreenId.toString())
+                          .get(),
+                      builder: (context, snap) {
+                        if (snap.hasData) {
+                          List<String> imgUrl =
+                              snap.data['imgUrl'].cast<String>();
+                          return Column(
+                            children: [
+                              if(imgUrl.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.all(8.0),
+                                child: Text(
+                                  'Фото объекта',
+                                  style: TextStyle(fontSize: 20),
+                                ),
+                              ),
+                              Center(
+                                child: Wrap(
+                                  children: imgUrl.map<Widget>((pic) {
+                                    String img = pic;
+                                    return Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) =>
+                                                  ImageViewer(
+                                                url: img,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        child: CachedNetworkImage(
+                                          height: 140,
+                                          width: 140,
+                                          imageUrl: pic,
+                                          progressIndicatorBuilder: (context,
+                                                  url, downloadProgress) =>
+                                              SizedBox(
+                                                width: 20,
+                                                height: 20,
+                                                child: CircularProgressIndicator(
+                                                    value: downloadProgress
+                                                        .progress),
+                                              ),
+                                          errorWidget: (context, url,
+                                                  error) =>
+                                              Icon(Icons
+                                                  .image_not_supported_sharp),
+                                        ),
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ),
+                            ],
+                          );
+                        } else {
+                          return SizedBox();
+                        }
+                      },
+                    )
                   ],
                 ),
               ),

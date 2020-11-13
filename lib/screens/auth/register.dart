@@ -9,6 +9,7 @@ import 'package:ordersystem/common/platform_exaption_alert_dialog.dart';
 import 'package:ordersystem/common/size_config.dart';
 import 'package:ordersystem/provider/provider.dart';
 import 'package:ordersystem/screens/auth/sign_in.dart';
+import 'package:ordersystem/screens/home.dart';
 import 'package:ordersystem/services/auth_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -117,10 +118,11 @@ class _RegistrationState extends State<Registration> {
           name: _name.trim(),
           imgUrl: imgUrl == null ? emptyUrl : imgUrl,
         ).then((value) {
+
           // addUIDSF(value.currentUser());
           print('!!!$tokenn');
 
-          Navigator.popUntil(context, (route) => route.isFirst);
+          Navigator.push(context, MaterialPageRoute(builder: (context) => Home()));
         });
       } on PlatformException catch (e) {
         PlatformExceptionAlertDialog(

@@ -3,9 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>52267953227-5heh90ldfneduvvrjc5rnghl51el6hsc.apps.googleusercontent.com</string>
+	<string>52267953227-a74i39asu42puf9no2rmuc04du2nkt5t.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.52267953227-5heh90ldfneduvvrjc5rnghl51el6hsc</string>
+	<string>com.googleusercontent.apps.52267953227-a74i39asu42puf9no2rmuc04du2nkt5t</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>52267953227-2hg1cqq486d9ms4l91nmltjgpdmvn85a.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
 	<string>AIzaSyAShBQiYLmV_Y404h6CZqjG91TfeO6_Vm8</string>
 	<key>GCM_SENDER_ID</key>
@@ -13,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.app.ordersystem.olga</string>
+	<string>com.app.ordersystem.olgaios</string>
 	<key>PROJECT_ID</key>
 	<string>olgaordersystem</string>
 	<key>STORAGE_BUCKET</key>
@@ -29,7 +31,7 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:52267953227:ios:603cb9a57d72d2e92171ce</string>
+	<string>1:52267953227:ios:5e3cb395ba2802ee2171ce</string>
 	<key>DATABASE_URL</key>
 	<string>https://olgaordersystem.firebaseio.com</string>
 </dict>

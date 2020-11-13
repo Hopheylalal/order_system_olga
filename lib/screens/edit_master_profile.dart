@@ -18,6 +18,9 @@ import 'package:ordersystem/widgets/order_filter.dart';
 import 'package:provider/provider.dart';
 
 class EditMasterProfile extends StatefulWidget {
+  final userType;
+
+  const EditMasterProfile({Key key, this.userType}) : super(key: key);
   @override
   _EditMasterProfileState createState() => _EditMasterProfileState();
 }
@@ -222,21 +225,36 @@ class _EditMasterProfileState extends State<EditMasterProfile> {
   void editProfile(newImg) async {
     _formKey.currentState.save();
     try {
-      await Firestore.instance
-          .collection('masters')
-          .document(curUsr)
-          .updateData({
-        'name': name,
-        'userId': curUsr,
-        'imgUrl': imgUrl == null ? imgUrl = newImg : imgUrl,
-        'aboutShort': aboutShort,
-        'aboutLong': aboutLong,
-        'token': saveToken.read('token'),
-        'geoPoint': GeoPoint(masterPoint.first.position.latitude,
-            masterPoint.last.position.longitude)
-      }).then(
-        (_) => Navigator.pop(context),
-      );
+      if(widget.userType == 'master'){
+        await Firestore.instance
+            .collection('masters')
+            .document(curUsr)
+            .updateData({
+          'name': name,
+          'userId': curUsr,
+          'imgUrl': imgUrl == null ? imgUrl = newImg : imgUrl,
+          'aboutShort': aboutShort,
+          'aboutLong': aboutLong,
+          'token': saveToken.read('token'),
+          'geoPoint': GeoPoint(masterPoint.first.position.latitude,
+              masterPoint.last.position.longitude)
+        }).then(
+              (_) => Navigator.pop(context),
+        );
+      }else{
+        await Firestore.instance
+            .collection('masters')
+            .document(curUsr)
+            .updateData({
+          'name': name,
+          'userId': curUsr,
+          'imgUrl': imgUrl == null ? imgUrl = newImg : imgUrl,
+          'token': saveToken.read('token'),
+        }).then(
+              (_) => Navigator.pop(context),
+        );
+      }
+
     } catch (e) {
       PlatformAlertDialog(
         title: 'Внимание',
@@ -317,6 +335,7 @@ class _EditMasterProfileState extends State<EditMasterProfile> {
                               labelText: 'ФИО',
                             ),
                           ),
+                          if(widget.userType == 'master')
                           TextFormField(
                             initialValue: snapshot.data['aboutShort'],
                             focusNode: _shortFocusNode,
@@ -328,6 +347,7 @@ class _EditMasterProfileState extends State<EditMasterProfile> {
                             decoration:
                                 InputDecoration(labelText: 'Коротко о себе'),
                           ),
+                          if(widget.userType == 'master')
                           TextFormField(
                             initialValue: snapshot.data['aboutLong'],
                             focusNode: _longFocusNode,
@@ -343,6 +363,7 @@ class _EditMasterProfileState extends State<EditMasterProfile> {
                           SizedBox(
                             height: 20,
                           ),
+                          if(widget.userType == 'master')
                           SizedBox(
                             width: double.infinity,
                             child: FlatButton.icon(
@@ -372,6 +393,7 @@ class _EditMasterProfileState extends State<EditMasterProfile> {
                               ),
                             ),
                           ),
+                          if(widget.userType == 'master')
                           FlatButton.icon(
                             onPressed: () async {
                               masterPoint = await Navigator.push(

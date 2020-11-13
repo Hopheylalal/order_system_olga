@@ -3,6 +3,7 @@ import 'package:flutter_dialogs/flutter_dialogs.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:ordersystem/common/platform_alert_dialog.dart';
 import 'package:ordersystem/provider/provider.dart';
+import 'package:ordersystem/screens/login_screen.dart';
 import 'package:ordersystem/screens/map_screen.dart';
 import 'package:ordersystem/services/auth_service.dart';
 import 'package:provider/provider.dart';
@@ -16,6 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:flutter_app_badger/flutter_app_badger.dart';
 
 import 'message_cemter_screen.dart';
 
@@ -55,6 +57,7 @@ class _HomeState extends State<Home> {
 
   void getMessages(user) {
     _firebaseMessaging.configure(onMessage: (msg) {
+
       context
           .watch<DataProvider>()
           .getMessagesFromFireStore(context.read<FirebaseUser>().uid);
@@ -63,6 +66,7 @@ class _HomeState extends State<Home> {
     },
 //        onBackgroundMessage: myBackgroundMessageHandler,
         onLaunch: (msg) {
+
       context
           .watch<DataProvider>()
           .getMessagesFromFireStore(context.read<FirebaseUser>().uid);
@@ -74,6 +78,7 @@ class _HomeState extends State<Home> {
           .watch<DataProvider>()
           .getMessagesFromFireStore(context.read<FirebaseUser>().uid);
       print(msg);
+
       return;
     });
   }
@@ -84,6 +89,7 @@ class _HomeState extends State<Home> {
           .watch<DataProvider>()
           .getMessagesFromFireStore(context.read<FirebaseUser>().uid);
       print(msg);
+
       return;
     },
 //        onBackgroundMessage: myBackgroundMessageHandler,
@@ -92,6 +98,7 @@ class _HomeState extends State<Home> {
           .watch<DataProvider>()
           .getMessagesFromFireStore(context.read<FirebaseUser>().uid);
       print(msg);
+
       return;
     }, onResume: (msg) {
       context
@@ -153,10 +160,10 @@ class _HomeState extends State<Home> {
             .getMessagesFromFireStore(user);
       }
     }
-
-
-
   }
+
+
+
 
   @override
   void initState() {
@@ -178,9 +185,13 @@ class _HomeState extends State<Home> {
     if (Platform.isAndroid) {
       if (context.read<FirebaseUser>() != null)
         getMessages(context.read<FirebaseUser>().uid);
+      FlutterAppBadger.updateBadgeCount(1);
+
     } else if (Platform.isIOS) {
       if (context.read<FirebaseUser>() != null)
         getMessagesIos(context.read<FirebaseUser>().uid);
+      FlutterAppBadger.updateBadgeCount(1);
+
     }
   }
 
@@ -194,7 +205,7 @@ class _HomeState extends State<Home> {
     MapScreen(),
     MessageCenter(),
     AllOrders(),
-    Settings(),
+    LoginScreen(),
   ];
 
   @override

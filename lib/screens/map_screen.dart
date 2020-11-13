@@ -1,5 +1,6 @@
 import 'package:basic_utils/basic_utils.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -26,11 +27,23 @@ class _MapScreenState extends State<MapScreen> {
   LatLng startLocation;
   LatLng startLocationError = LatLng(55.749711, 37.616806);
   final box = GetStorage();
-  
+  final loadStatus = GetStorage();
 
   Future<LatLng> getLocation() async {
     Position position =
         await getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+    print('234$position');
+    // startLocation = LatLng(position.latitude, position.longitude);
+    LatLng _startTarget = LatLng(position.latitude, position.longitude);
+
+    startLocation = _startTarget;
+
+    return _startTarget;
+  }
+
+  Future<LatLng> getLocation2() async {
+    Position position =
+    await getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
     print('234$position');
     // startLocation = LatLng(position.latitude, position.longitude);
     LatLng _startTarget = LatLng(position.latitude, position.longitude);
@@ -69,7 +82,6 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   getMarkers() async {
-
     final snapshot = await Firestore.instance
         .collection('masters')
         .where('category',
@@ -115,13 +127,59 @@ class _MapScreenState extends State<MapScreen> {
         ),
       );
     }
-
   }
+
+  getLastSeen() async {
+    print('aaa');
+    try {
+      final FirebaseAuth auth = FirebaseAuth.instance;
+      final FirebaseUser user1 = await auth.currentUser();
+      String user;
+      setState(() {
+        user = user1?.uid;
+      });
+      if (loadStatus.read('userType') == 'master') {
+        await Firestore.instance
+            .collection('masters')
+            .document(user)
+            .updateData(
+          {'lastSeen': Timestamp.now()},
+        );
+      }
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  List<String> categoryInMemory = [
+    "1все",
+    "Ассенизатор",
+    "Астролог",
+    "Бетонщик",
+    "Водитель",
+    "Грузчик",
+    "Доставщик",
+    "Жестянщик",
+    "Ключник",
+    "Маникюр",
+    "Парикмахер",
+    "Плотник",
+    "Стамотолог",
+    "Сыровар",
+    "Тракторист",
+    "Танцовщица",
+    "Учитель",
+    "Хлебопекарь",
+    "Прораб",
+    "Строитель",
+    "Сварщик",
+  ];
 
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
+    getLastSeen();
     // showMarkers1();
     getLocation().catchError((e) {
       return PlatformAlertDialog(
@@ -135,9 +193,15 @@ class _MapScreenState extends State<MapScreen> {
     getMarkers();
   }
 
+  st(){
+    setState(() {
+
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    if(masters.isEmpty && startLocation != null){
+    if (masters.isEmpty && startLocation != null) {
       getMarkers();
     }
 
@@ -161,15 +225,26 @@ class _MapScreenState extends State<MapScreen> {
                 style: TextStyle(color: Colors.white, fontSize: 17),
               ),
               value: _chosenValue,
-              items: catsSelector.map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(
-                    StringUtils.capitalize(value).replaceAll("1", ''),
-                    style: TextStyle(color: Colors.white, fontSize: 15),
-                  ),
-                );
-              }).toList(),
+              items: catsSelector != null
+                  ? catsSelector.map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(
+                          StringUtils.capitalize(value).replaceAll("1", ''),
+                          style: TextStyle(color: Colors.white, fontSize: 15),
+                        ),
+                      );
+                    }).toList()
+                  : categoryInMemory
+                      .map<DropdownMenuItem<String>>((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(
+                          StringUtils.capitalize(value).replaceAll("1", ''),
+                          style: TextStyle(color: Colors.white, fontSize: 15),
+                        ),
+                      );
+                    }).toList(),
               onChanged: (String value) {
                 setState(() {
                   _chosenValue = value;
@@ -183,7 +258,8 @@ class _MapScreenState extends State<MapScreen> {
         ),
       ),
       body: FutureBuilder(
-          future: getLocation().timeout(const Duration (seconds:10),onTimeout : getLocation),
+          future: getLocation()
+              .timeout(const Duration(seconds: 15), onTimeout: getLocation2),
           builder: (context, snapshot) {
             if (snapshot.hasData && snapshot.data != null) {
               context.watch<DataProvider>().getUserPosition(snapshot.data);
